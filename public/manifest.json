@@ -1,0 +1,24 @@
+{
+  "name": "Bloc Task Management",
+  "short_name": "Bloc",
+  "description": "Team task management",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F5F0E8",
+  "theme_color": "#000000",
+  "icons": [
+    {
+      "src": "/bloc-logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/bloc-favicon.png",
+      "sizes": "64x64",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
+  
