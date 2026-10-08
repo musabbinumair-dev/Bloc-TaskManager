@@ -5,7 +5,10 @@ import bcrypt from "bcryptjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const DATA_DIR = path.resolve(__dirname, "../data");
+const isVercel = Boolean(process.env.VERCEL);
+const DATA_DIR = isVercel
+  ? path.join("/tmp", "bloc-data")
+  : path.resolve(__dirname, "../data");
 const DB_FILE = path.join(DATA_DIR, "bloc.json");
 
 export interface DbUser {
@@ -257,22 +260,25 @@ class Database {
     joinedAt: number;
   }[] {
     const memberships = this.data.members.filter((m) => m.workspaceId === workspaceId);
-    return memberships
-      .map((m) => {
-        const user = this.findUserById(m.userId);
-        if (!user) return null;
-        return {
-          id: m.id,
-          userId: user.id,
-          name: user.name,
-          email: user.email,
-          color: user.color,
-          roleTitle: user.roleTitle,
-          role: m.role,
-          joinedAt: m.joinedAt,
-        };
-      })
-      .filter(Boolean) as any[];
+    const seenUserIds = new Set<string>();
+    const result: any[] = [];
+    for (const m of memberships) {
+      if (seenUserIds.has(m.userId)) continue;
+      seenUserIds.add(m.userId);
+      const user = this.findUserById(m.userId);
+      if (!user) continue;
+      result.push({
+        id: m.id,
+        userId: user.id,
+        name: user.name,
+        email: user.email,
+        color: user.color,
+        roleTitle: user.roleTitle,
+        role: m.role,
+        joinedAt: m.joinedAt,
+      });
+    }
+    return result;
   }
 
   public isMember(workspaceId: string, userId: string): boolean {

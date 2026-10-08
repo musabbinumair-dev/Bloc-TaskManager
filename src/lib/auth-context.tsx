@@ -63,21 +63,71 @@ export interface AuthContextType {
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [workspaces, setWorkspaces] = useState<{ workspace: Workspace; role: string }[]>([]);
-  const [currentWorkspace, setCurrentWorkspace] = useState<Workspace | null>(null);
+  const [user, setUser] = useState<User | null>(() => {
+    try {
+      const saved = localStorage.getItem("bloc_user");
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+  const [workspaces, setWorkspaces] = useState<{ workspace: Workspace; role: string }[]>(() => {
+    try {
+      const saved = localStorage.getItem("bloc_workspaces");
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [currentWorkspace, setCurrentWorkspace] = useState<Workspace | null>(() => {
+    try {
+      const savedWs = localStorage.getItem("bloc_current_workspace");
+      if (savedWs) return JSON.parse(savedWs);
+      const savedList = localStorage.getItem("bloc_workspaces");
+      if (savedList) {
+        const list = JSON.parse(savedList);
+        return list[0]?.workspace || null;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  });
   const [members, setMembers] = useState<WorkspaceMember[]>([]);
   const [invites, setInvites] = useState<WorkspaceInvite[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => {
+    return !localStorage.getItem("bloc_user") && Boolean(localStorage.getItem("bloc_token"));
+  });
+
+  const getHeaders = (extra?: Record<string, string>): Record<string, string> => {
+    const headers: Record<string, string> = { ...extra };
+    const token = localStorage.getItem("bloc_token");
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+    return headers;
+  };
 
   // Fetch current user & workspaces
   const refreshMe = useCallback(async () => {
     try {
-      const res = await fetch("/api/auth/me");
+      const token = localStorage.getItem("bloc_token");
+      const headers = getHeaders();
+      const res = await fetch("/api/auth/me", { headers });
+
+      // Guard against non-JSON responses (e.g. static HTML fallback)
+      const contentType = res.headers.get("content-type");
+      if (contentType && !contentType.includes("application/json")) {
+        console.warn("Auth endpoint returned non-JSON response");
+        return;
+      }
+
       if (res.ok) {
         const data = await res.json();
         setUser(data.user);
+        localStorage.setItem("bloc_user", JSON.stringify(data.user));
         setWorkspaces(data.workspaces || []);
+        localStorage.setItem("bloc_workspaces", JSON.stringify(data.workspaces || []));
 
         // Pick current workspace if none or if current workspace is not in the list
         if (data.workspaces && data.workspaces.length > 0) {
@@ -85,22 +135,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const found = data.workspaces.find((w: any) => w.workspace.id === savedWsId);
           if (found) {
             setCurrentWorkspace(found.workspace);
+            localStorage.setItem("bloc_current_workspace", JSON.stringify(found.workspace));
           } else {
             setCurrentWorkspace(data.workspaces[0].workspace);
             localStorage.setItem("bloc_current_workspace_id", data.workspaces[0].workspace.id);
+            localStorage.setItem("bloc_current_workspace", JSON.stringify(data.workspaces[0].workspace));
           }
         } else {
           setCurrentWorkspace(null);
+          localStorage.removeItem("bloc_current_workspace");
+          localStorage.removeItem("bloc_current_workspace_id");
         }
-      } else {
+      } else if (res.status === 401 && token) {
+        // Real session expiration
+        localStorage.removeItem("bloc_token");
+        localStorage.removeItem("bloc_user");
+        localStorage.removeItem("bloc_workspaces");
+        localStorage.removeItem("bloc_current_workspace");
+        localStorage.removeItem("bloc_current_workspace_id");
         setUser(null);
         setWorkspaces([]);
         setCurrentWorkspace(null);
       }
     } catch (e) {
-      setUser(null);
-      setWorkspaces([]);
-      setCurrentWorkspace(null);
+      console.warn("Failed to refresh user session:", e);
     } finally {
       setLoading(false);
     }
@@ -114,10 +172,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
     try {
-      const res = await fetch(`/api/workspaces/${currentWorkspace.id}`);
+      const res = await fetch(`/api/workspaces/${currentWorkspace.id}`, {
+        headers: getHeaders(),
+      });
+      const contentType = res.headers.get("content-type");
+      if (contentType && !contentType.includes("application/json")) return;
+
       if (res.ok) {
         const data = await res.json();
         setCurrentWorkspace(data.workspace);
+        localStorage.setItem("bloc_current_workspace", JSON.stringify(data.workspace));
         setMembers(data.members || []);
         setInvites(data.invites || []);
       }
@@ -147,6 +211,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!res.ok) {
         return { success: false, error: data.error || "Failed to log in" };
       }
+      if (data.token) {
+        localStorage.setItem("bloc_token", data.token);
+      }
+      if (data.user) {
+        localStorage.setItem("bloc_user", JSON.stringify(data.user));
+      }
       setUser(data.user);
       await refreshMe();
       return { success: true };
@@ -166,6 +236,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!res.ok) {
         return { success: false, error: data.error || "Failed to create account" };
       }
+      if (data.token) {
+        localStorage.setItem("bloc_token", data.token);
+      }
+      if (data.user) {
+        localStorage.setItem("bloc_user", JSON.stringify(data.user));
+      }
       setUser(data.user);
       await refreshMe();
       return { success: true };
@@ -176,8 +252,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = async () => {
     try {
-      await fetch("/api/auth/logout", { method: "POST" });
+      await fetch("/api/auth/logout", {
+        method: "POST",
+        headers: getHeaders(),
+      });
     } catch {}
+    localStorage.removeItem("bloc_token");
+    localStorage.removeItem("bloc_user");
+    localStorage.removeItem("bloc_workspaces");
+    localStorage.removeItem("bloc_current_workspace");
     localStorage.removeItem("bloc_current_workspace_id");
     setUser(null);
     setWorkspaces([]);
@@ -196,7 +279,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const res = await fetch("/api/auth/profile", {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: getHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify(updates),
       });
       const data = await res.json();
@@ -204,6 +287,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { success: false, error: data.error || "Failed to update profile" };
       }
       setUser(data.user);
+      localStorage.setItem("bloc_user", JSON.stringify(data.user));
       return { success: true };
     } catch (e: any) {
       return { success: false, error: e.message || "Failed to update profile" };
@@ -214,7 +298,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const res = await fetch("/api/workspaces", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({ name, category, description }),
       });
       const data = await res.json();
@@ -222,6 +306,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { success: false, error: data.error || "Failed to create workspace" };
       }
       localStorage.setItem("bloc_current_workspace_id", data.workspace.id);
+      localStorage.setItem("bloc_current_workspace", JSON.stringify(data.workspace));
       setCurrentWorkspace(data.workspace);
       await refreshMe();
       return { success: true, workspace: data.workspace };
@@ -234,7 +319,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const res = await fetch("/api/workspaces/join", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({ inviteCode }),
       });
       const data = await res.json();
@@ -242,6 +327,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { success: false, error: data.error || "Failed to join workspace" };
       }
       localStorage.setItem("bloc_current_workspace_id", data.workspace.id);
+      localStorage.setItem("bloc_current_workspace", JSON.stringify(data.workspace));
       setCurrentWorkspace(data.workspace);
       await refreshMe();
       return { success: true, workspace: data.workspace };
@@ -255,6 +341,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (found) {
       setCurrentWorkspace(found.workspace);
       localStorage.setItem("bloc_current_workspace_id", found.workspace.id);
+      localStorage.setItem("bloc_current_workspace", JSON.stringify(found.workspace));
     }
   };
 
@@ -263,7 +350,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const res = await fetch(`/api/workspaces/${currentWorkspace.id}/invites`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({ email, role }),
       });
       const data = await res.json();

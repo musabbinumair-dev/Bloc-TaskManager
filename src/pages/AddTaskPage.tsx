@@ -212,8 +212,8 @@ export default function AddTaskPage() {
                 className="w-full lg:w-auto"
                 style={{ padding: "10px 12px", border: "2px solid #000", boxShadow: "2px 2px 0 #000", backgroundColor: "#fff", fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600, fontSize: "13px", cursor: "pointer", outline: "none" }}
               >
-                {ownerOptions.map((opt) => (
-                  <option key={opt} value={opt}>{opt}</option>
+                {ownerOptions.map((opt, idx) => (
+                  <option key={`owner-opt-${opt}-${idx}`} value={opt}>{opt}</option>
                 ))}
               </select>
             </div>

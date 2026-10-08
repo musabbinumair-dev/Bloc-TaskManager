@@ -45,9 +45,19 @@ export default function DashboardPage() {
       return bTime - aTime;
     })[0];
 
-  // Dynamic members from workspace
-  const teamMemberNames = members.map((m) => m.name);
-  const allCardNames = [...teamMemberNames, "Shared"];
+  // Dynamic members from workspace (deduplicated by name case-insensitively for sprint tracks)
+  const seenMemberNames = new Set<string>();
+  const allCardNames: string[] = [];
+  members.forEach((m) => {
+    const trimmed = (m.name || "").trim();
+    if (trimmed && !seenMemberNames.has(trimmed.toLowerCase())) {
+      seenMemberNames.add(trimmed.toLowerCase());
+      allCardNames.push(trimmed);
+    }
+  });
+  if (!seenMemberNames.has("shared")) {
+    allCardNames.push("Shared");
+  }
 
   return (
     <div className="p-3 sm:p-5 flex flex-col gap-3 sm:gap-5">
@@ -177,10 +187,10 @@ export default function DashboardPage() {
             { label: "TESTING", count: testing, bg: "#9D00FF", color: "#fff", icon: FlaskConical },
             { label: "BLOCKED", count: blocked, bg: "#FF0033", color: "#fff", icon: AlertOctagon },
             { label: "TODO", count: todo, bg: "#CCCCCC", color: "#000", icon: Clock },
-          ].map((chip) => {
+          ].map((chip, idx) => {
             const ChipIcon = chip.icon;
             return (
-              <div key={chip.label} style={{ border: "2px solid #000", backgroundColor: chip.bg, color: chip.color, padding: "2px 8px", fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: "10px", display: "flex", gap: "4px", alignItems: "center" }}>
+              <div key={`chip-${chip.label}-${idx}`} style={{ border: "2px solid #000", backgroundColor: chip.bg, color: chip.color, padding: "2px 8px", fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: "10px", display: "flex", gap: "4px", alignItems: "center" }}>
                 <ChipIcon size={11} strokeWidth={2.6} className="shrink-0" />
                 <span>{chip.label}</span>
                 <span style={{ backgroundColor: chip.color, color: chip.bg, padding: "0 3px", border: "1px solid #000" }}>{chip.count}</span>
@@ -194,12 +204,12 @@ export default function DashboardPage() {
       <div style={{ border: "3px solid #000", boxShadow: "4px 4px 0 #000", backgroundColor: "#F5F0E8", padding: "14px" }}>
         <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: "12px", letterSpacing: "0.05em", marginBottom: "10px" }}>LIVE STATUS & ACTIVE PRESENCE</div>
         <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-          {members.map((member) => {
+          {members.map((member, idx) => {
             const activeEntry = state.activeWorkers.find((w) => w.user.toLowerCase() === member.name.toLowerCase());
             const activeTask = activeEntry ? tasks.find((t) => t.id === activeEntry.taskId) : null;
             return (
               <div
-                key={member.userId}
+                key={`presence-${member.userId || member.id || "mem"}-${idx}`}
                 className="flex flex-col sm:flex-row sm:items-center gap-2 p-2.5 sm:p-3 border-2 border-black"
                 style={{ backgroundColor: activeTask ? "#fffdf5" : "#F5F0E8" }}
               >
@@ -214,7 +224,12 @@ export default function DashboardPage() {
                       flexShrink: 0,
                     }}
                   />
-                  <strong style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: "12px", flexShrink: 0 }}>{member.name}</strong>
+                  <strong style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: "12px", flexShrink: 0 }}>
+                    {member.name}
+                  </strong>
+                  {member.email && (
+                    <span className="text-[10px] text-gray-500 font-mono">({member.email})</span>
+                  )}
                   {activeTask && (
                     <span style={{ fontSize: "11px", color: "#666" }}>is on:</span>
                   )}
@@ -238,7 +253,7 @@ export default function DashboardPage() {
       <div>
         <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: "13px", letterSpacing: "0.05em", marginBottom: "10px" }}>TEAM SPRINT PROGRESS</div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
-          {allCardNames.map((memberName) => {
+          {allCardNames.map((memberName, idx) => {
             const memberTasks = tasks.filter((t) => t.owner.toLowerCase() === memberName.toLowerCase());
             const mOpen = memberTasks.filter((t) => t.status !== "done").length;
             const mActive = memberTasks.filter((t) => t.status === "progress").length;
@@ -247,17 +262,23 @@ export default function DashboardPage() {
             const mPct = memberTasks.length > 0 ? Math.round((mDone / memberTasks.length) * 100) : 0;
             const activeWorker = state.activeWorkers.find((w) => w.user.toLowerCase() === memberName.toLowerCase());
             const activeTask = activeWorker ? tasks.find((t) => t.id === activeWorker.taskId) : null;
-            const memberObj = members.find((m) => m.name.toLowerCase() === memberName.toLowerCase());
+            const matchingMembers = members.filter((m) => m.name.toLowerCase() === memberName.toLowerCase());
+            const memberObj = matchingMembers[0];
+            const roleDescription = memberName === "Shared"
+              ? "Shared Team"
+              : matchingMembers.length > 1
+                ? `${matchingMembers.length} Members (${matchingMembers.map(m => m.role).join(", ")})`
+                : memberObj?.roleTitle || (memberObj?.role ? memberObj.role.toUpperCase() : "Member");
 
             return (
-              <div key={memberName} style={{ border: "3px solid #000", boxShadow: "4px 4px 0 #000", backgroundColor: "#F5F0E8", padding: "12px" }}>
+              <div key={`sprint-card-${memberName}-${idx}`} style={{ border: "3px solid #000", boxShadow: "4px 4px 0 #000", backgroundColor: "#F5F0E8", padding: "12px" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "10px" }}>
                   <div style={{ ...getOwnerStyle(memberName), width: "32px", height: "32px", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: "14px", border: "3px solid #000" }}>
                     {memberName[0]}
                   </div>
                   <div>
                     <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: "12px" }}>{memberName.toUpperCase()}</div>
-                    <div style={{ fontSize: "10px", color: "#666" }}>{memberObj?.roleTitle || (memberName === "Shared" ? "Shared Team" : "Member")}</div>
+                    <div style={{ fontSize: "10px", color: "#666" }}>{roleDescription}</div>
                   </div>
                   <div style={{ marginLeft: "auto", width: "10px", height: "10px", borderRadius: "50%", backgroundColor: activeTask ? "#00CC44" : "#CCCCCC", border: "2px solid #000" }} />
                 </div>
@@ -276,7 +297,7 @@ export default function DashboardPage() {
                     { label: "BLOCKED", val: mBlocked, color: "#FF0033" },
                     { label: "DONE", val: mDone, color: "#00CC44" },
                   ].map((s) => (
-                    <div key={s.label} style={{ border: "2px solid #000", backgroundColor: "#fff", padding: "4px", textAlign: "center" }}>
+                    <div key={`stat-${memberName}-${s.label}`} style={{ border: "2px solid #000", backgroundColor: "#fff", padding: "4px", textAlign: "center" }}>
                       <div style={{ fontSize: "9px", fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, color: "#888" }}>{s.label}</div>
                       <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: "14px", color: s.color }}>{s.val}</div>
                     </div>

@@ -162,11 +162,11 @@ export default function EditTaskModal({ task, open, onClose }: EditTaskModalProp
             <div>
               <label style={lbl}>OWNER</label>
               <div style={{ display: "flex", gap: "4px", flexWrap: "wrap" }}>
-                {dynamicOwners.map((o) => {
+                {dynamicOwners.map((o, idx) => {
                   const active = owner === o;
                   const palette = getOwnerPalette(o);
                   return (
-                    <button key={o} onClick={() => setOwner(o)}
+                    <button key={`modal-owner-${o}-${idx}`} onClick={() => setOwner(o)}
                       style={{ padding: "4px 10px", border: "2px solid #000", boxShadow: active ? `3px 3px 0 #000` : "none", backgroundColor: active ? palette.bg : "#F5F0E8", color: active ? palette.text : "#555", fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: "10px", letterSpacing: "0.04em", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "4px" }}>
                       {getOwnerIconComponent(o, 11)}
                       {o.toUpperCase()}

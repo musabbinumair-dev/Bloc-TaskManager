@@ -174,12 +174,36 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
   const { currentWorkspace, user } = useAuth();
   const [state, reactDispatch] = useReducer(taskReducer, initialState);
 
+  const getHeaders = (extra?: Record<string, string>): Record<string, string> => {
+    const headers: Record<string, string> = { ...extra };
+    const token = localStorage.getItem("bloc_token");
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+    return headers;
+  };
+
   // Sync current user name into task state
   useEffect(() => {
     if (user?.name) {
       reactDispatch({ type: "SET_CURRENT_USER", payload: user.name });
     }
   }, [user?.name]);
+
+  // Load cached tasks when switching workspace
+  useEffect(() => {
+    if (currentWorkspace?.id) {
+      try {
+        const cached = localStorage.getItem(`bloc_tasks_${currentWorkspace.id}`);
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            reactDispatch({ type: "SET_TASKS", payload: parsed });
+          }
+        }
+      } catch {}
+    }
+  }, [currentWorkspace?.id]);
 
   // Fetch tasks whenever active workspace changes
   const fetchTasks = useCallback(async () => {
@@ -189,10 +213,19 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
     }
 
     try {
-      const res = await fetch(`/api/workspaces/${currentWorkspace.id}/tasks`);
+      const res = await fetch(`/api/workspaces/${currentWorkspace.id}/tasks`, {
+        headers: getHeaders(),
+      });
+      const contentType = res.headers.get("content-type");
+      if (contentType && !contentType.includes("application/json")) return;
+
       if (res.ok) {
         const data = await res.json();
-        reactDispatch({ type: "SET_TASKS", payload: data.tasks || [] });
+        const tasks = data.tasks || [];
+        reactDispatch({ type: "SET_TASKS", payload: tasks });
+        try {
+          localStorage.setItem(`bloc_tasks_${currentWorkspace.id}`, JSON.stringify(tasks));
+        } catch {}
       }
     } catch (e) {
       console.warn("Failed to fetch tasks:", e);
@@ -219,7 +252,7 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
         case "ADD_TASK": {
           await fetch(`/api/workspaces/${wsId}/tasks`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: getHeaders({ "Content-Type": "application/json" }),
             body: JSON.stringify(action.payload),
           });
           break;
@@ -227,13 +260,14 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
         case "DELETE_TASK": {
           await fetch(`/api/workspaces/${wsId}/tasks/${action.payload}`, {
             method: "DELETE",
+            headers: getHeaders(),
           });
           break;
         }
         case "UPDATE_TASK": {
           await fetch(`/api/workspaces/${wsId}/tasks/${action.payload.id}`, {
             method: "PATCH",
-            headers: { "Content-Type": "application/json" },
+            headers: getHeaders({ "Content-Type": "application/json" }),
             body: JSON.stringify(action.payload),
           });
           break;
@@ -241,7 +275,7 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
         case "SET_ACTIVE_WORKER": {
           await fetch(`/api/workspaces/${wsId}/tasks/${action.payload.taskId}/active-worker`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: getHeaders({ "Content-Type": "application/json" }),
             body: JSON.stringify({ active: true, since: action.payload.startTime }),
           });
           break;
@@ -249,7 +283,7 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
         case "CLEAR_ACTIVE_WORKER": {
           await fetch(`/api/workspaces/${wsId}/tasks/${action.payload}/active-worker`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: getHeaders({ "Content-Type": "application/json" }),
             body: JSON.stringify({ active: false }),
           });
           break;
@@ -257,7 +291,7 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
         case "ADD_COMMENT": {
           await fetch(`/api/workspaces/${wsId}/tasks/${action.payload.taskId}/comments`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: getHeaders({ "Content-Type": "application/json" }),
             body: JSON.stringify({ text: action.payload.comment.text }),
           });
           break;
@@ -265,7 +299,7 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
         case "UPDATE_NOTES": {
           await fetch(`/api/workspaces/${wsId}/tasks/${action.payload.taskId}`, {
             method: "PATCH",
-            headers: { "Content-Type": "application/json" },
+            headers: getHeaders({ "Content-Type": "application/json" }),
             body: JSON.stringify({ notes: action.payload.notes }),
           });
           break;
@@ -275,7 +309,7 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
           if (current) {
             await fetch(`/api/workspaces/${wsId}/tasks/${action.payload}`, {
               method: "PATCH",
-              headers: { "Content-Type": "application/json" },
+              headers: getHeaders({ "Content-Type": "application/json" }),
               body: JSON.stringify({ pushedToGitHub: !current.pushedToGitHub }),
             });
           }
@@ -283,7 +317,10 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
         }
         case "MARK_SEEN": {
           for (const taskId of action.payload) {
-            fetch(`/api/workspaces/${wsId}/tasks/${taskId}/seen`, { method: "POST" }).catch(() => {});
+            fetch(`/api/workspaces/${wsId}/tasks/${taskId}/seen`, {
+              method: "POST",
+              headers: getHeaders(),
+            }).catch(() => {});
           }
           break;
         }

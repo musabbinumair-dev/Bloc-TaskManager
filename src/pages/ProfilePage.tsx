@@ -391,13 +391,13 @@ export default function ProfilePage() {
               </div>
 
               <div className="space-y-2">
-                {members.map((m) => {
+                {members.map((m, idx) => {
                   const mTasks = state.tasks.filter(
                     (t) => t.owner.toLowerCase() === m.name.toLowerCase()
                   );
                   return (
                     <div
-                      key={m.userId}
+                      key={`profile-member-${m.userId || m.id || "mem"}-${idx}`}
                       className="border-2 border-black p-3 bg-white flex flex-wrap items-center justify-between gap-3 shadow-[1px_1px_0_#000]"
                     >
                       <div className="flex items-center gap-3">

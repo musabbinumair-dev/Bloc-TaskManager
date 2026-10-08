@@ -166,8 +166,8 @@ export default function InviteModal({ open, onClose }: InviteModalProps) {
 
             {invites.length > 0 && (
               <div className="mt-3 max-h-24 overflow-y-auto space-y-1 border-t border-gray-300 pt-2">
-                {invites.slice(0, 4).map((inv) => (
-                  <div key={inv.id} className="flex items-center justify-between text-[11px] bg-white p-1.5 border border-black">
+                {invites.slice(0, 4).map((inv, idx) => (
+                  <div key={`inv-${inv.id || inv.code || "invite"}-${idx}`} className="flex items-center justify-between text-[11px] bg-white p-1.5 border border-black">
                     <span className="font-bold">{inv.email || "Open Pass"}</span>
                     <span className="font-mono bg-gray-200 px-1 border border-black text-[10px]">
                       {inv.code}

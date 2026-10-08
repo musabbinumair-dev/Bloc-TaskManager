@@ -348,13 +348,13 @@ export default function AppShell({ children, onLogout, onOpenOnboarding }: AppSh
                 {/* Teammates Tracks */}
                 {members
                   .filter((m) => m.userId !== user?.id)
-                  .map((m) => {
+                  .map((m, idx) => {
                     const memberOpen = state.tasks.filter((t) => t.owner.toLowerCase() === m.name.toLowerCase() && t.status !== "done").length;
                     const path = `/track/${encodeURIComponent(m.name)}`;
                     const isActive = location === path;
                     return (
                       <Link
-                        key={m.userId}
+                        key={`teammate-track-${m.userId || m.id || "mem"}-${idx}`}
                         href={path}
                         className={`w-full flex items-center justify-between px-2.5 py-1.5 border-2 border-black font-heading font-bold text-xs transition-transform ${
                           isActive ? "bg-[#FFE600] shadow-[2px_2px_0_#000] text-black" : "bg-white hover:bg-yellow-50 text-black"
@@ -560,9 +560,9 @@ export default function AppShell({ children, onLogout, onOpenOnboarding }: AppSh
                 <div className="text-[10px] font-heading font-bold text-gray-600 mb-2">
                   TEAM TRACKS:
                 </div>
-                {members.map((m) => (
+                {members.map((m, idx) => (
                   <Link
-                    key={m.userId}
+                    key={`mobile-teammate-${m.userId || m.id || "mem"}-${idx}`}
                     href={`/track/${encodeURIComponent(m.name)}`}
                     onClick={() => setMobileMenuOpen(false)}
                     className="block p-1.5 mb-1 bg-white border-2 border-black font-heading font-bold text-xs"
