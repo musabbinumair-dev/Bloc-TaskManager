@@ -1,23 +1,24 @@
-import React, { createContext, useContext, useReducer, useEffect } from 'react';
-import { dbRef, db, auth, onAuthStateChanged, onValue, set, push, update, remove } from './firebase';
-import { seedIfEmpty } from './seed-data';
+import React, { createContext, useContext, useReducer, useEffect, useCallback } from "react";
+import { useAuth } from "./auth-context";
 
-export type User = "Musab" | "Yusha" | "Shared";
 export type Priority = "high" | "medium" | "low";
 export type Status = "todo" | "progress" | "testing" | "blocked" | "done";
 
 export interface Comment {
   id: string;
-  author: User;
+  author: string;
+  authorId?: string;
   text: string;
   timestamp: number;
 }
 
 export interface Task {
   id: string;
+  workspaceId: string;
   title: string;
   description: string;
-  owner: User;
+  owner: string; // Member name or "Shared"
+  assigneeId?: string | null;
   category: string;
   priority: Priority;
   status: Status;
@@ -32,107 +33,132 @@ export interface Task {
 
 export interface ActiveWorker {
   taskId: string;
-  user: User;
+  user: string;
   startTime: number;
 }
 
 export interface AppState {
   tasks: Task[];
-  currentUser: "Musab" | "Yusha";
+  currentUser: string;
   seenTaskIds: Set<string>;
   activeWorkers: ActiveWorker[];
+  loading: boolean;
 }
 
 export type Action =
-  | { type: 'ADD_TASK'; payload: Task }
-  | { type: 'DELETE_TASK'; payload: string }
-  | { type: 'UPDATE_TASK'; payload: Partial<Task> & { id: string } }
-  | { type: 'SET_ACTIVE_WORKER'; payload: { taskId: string; user: User; startTime: number } }
-  | { type: 'CLEAR_ACTIVE_WORKER'; payload: string }
-  | { type: 'ADD_COMMENT'; payload: { taskId: string; comment: Comment } }
-  | { type: 'UPDATE_NOTES'; payload: { taskId: string; notes: string } }
-  | { type: 'TOGGLE_PUSHED'; payload: string }
-  | { type: 'MARK_SEEN'; payload: string[] }
-  | { type: 'SET_CURRENT_USER'; payload: "Musab" | "Yusha" }
-  | { type: 'SET_STATE_FROM_FIREBASE'; payload: { tasks: Task[]; activeWorkers: ActiveWorker[]; seenTaskIds: Set<string> } };
+  | { type: "SET_TASKS"; payload: Task[] }
+  | { type: "ADD_TASK"; payload: Task }
+  | { type: "DELETE_TASK"; payload: string }
+  | { type: "UPDATE_TASK"; payload: Partial<Task> & { id: string } }
+  | { type: "SET_ACTIVE_WORKER"; payload: { taskId: string; user: string; startTime: number } }
+  | { type: "CLEAR_ACTIVE_WORKER"; payload: string }
+  | { type: "ADD_COMMENT"; payload: { taskId: string; comment: Comment } }
+  | { type: "UPDATE_NOTES"; payload: { taskId: string; notes: string } }
+  | { type: "TOGGLE_PUSHED"; payload: string }
+  | { type: "MARK_SEEN"; payload: string[] }
+  | { type: "SET_CURRENT_USER"; payload: string }
+  | { type: "SET_LOADING"; payload: boolean };
 
 const initialState: AppState = {
   tasks: [],
-  currentUser: "Musab",
+  currentUser: "Team Member",
   seenTaskIds: new Set<string>(),
-  activeWorkers: []
+  activeWorkers: [],
+  loading: false,
 };
 
 function taskReducer(state: AppState, action: Action): AppState {
   switch (action.type) {
-    case 'SET_STATE_FROM_FIREBASE':
+    case "SET_TASKS": {
+      const activeWorkers: ActiveWorker[] = [];
+      const seenTaskIds = new Set<string>();
+
+      action.payload.forEach((t) => {
+        if ((t as any).activeWorker) {
+          activeWorkers.push({
+            taskId: t.id,
+            user: (t as any).activeWorker,
+            startTime: (t as any).activeWorkerSince || Date.now(),
+          });
+        }
+        if ((t as any).seenBy && (t as any).seenBy[state.currentUser.toLowerCase()]) {
+          seenTaskIds.add(t.id);
+        }
+      });
+
       return {
         ...state,
-        tasks: action.payload.tasks,
-        activeWorkers: action.payload.activeWorkers,
-        seenTaskIds: action.payload.seenTaskIds,
+        tasks: action.payload,
+        activeWorkers,
+        seenTaskIds,
+        loading: false,
       };
-    case 'ADD_TASK':
-      return { ...state, tasks: [...state.tasks, action.payload] };
-    case 'DELETE_TASK':
-      return { ...state, tasks: state.tasks.filter(t => t.id !== action.payload) };
-    case 'UPDATE_TASK':
+    }
+    case "ADD_TASK":
+      return { ...state, tasks: [action.payload, ...state.tasks] };
+    case "DELETE_TASK":
+      return { ...state, tasks: state.tasks.filter((t) => t.id !== action.payload) };
+    case "UPDATE_TASK":
       return {
         ...state,
-        tasks: state.tasks.map(t => {
+        tasks: state.tasks.map((t) => {
           if (t.id !== action.payload.id) return t;
           const updated = { ...t, ...action.payload };
-          if (action.payload.status === 'done' && t.status !== 'done') {
+          if (action.payload.status === "done" && t.status !== "done") {
             updated.doneAt = Date.now();
-          } else if (action.payload.status && action.payload.status !== 'done' && t.status === 'done') {
+          } else if (action.payload.status && action.payload.status !== "done" && t.status === "done") {
             updated.doneAt = undefined;
           }
           return updated;
-        })
+        }),
       };
-    case 'SET_ACTIVE_WORKER':
+    case "SET_ACTIVE_WORKER":
       return {
         ...state,
         activeWorkers: [
-          ...state.activeWorkers.filter(w => w.taskId !== action.payload.taskId && w.user !== action.payload.user),
-          action.payload
-        ]
+          ...state.activeWorkers.filter(
+            (w) => w.taskId !== action.payload.taskId && w.user !== action.payload.user
+          ),
+          action.payload,
+        ],
       };
-    case 'CLEAR_ACTIVE_WORKER':
+    case "CLEAR_ACTIVE_WORKER":
       return {
         ...state,
-        activeWorkers: state.activeWorkers.filter(w => w.taskId !== action.payload)
+        activeWorkers: state.activeWorkers.filter((w) => w.taskId !== action.payload),
       };
-    case 'ADD_COMMENT':
+    case "ADD_COMMENT":
       return {
         ...state,
-        tasks: state.tasks.map(t =>
+        tasks: state.tasks.map((t) =>
           t.id === action.payload.taskId
-            ? { ...t, comments: [...t.comments, action.payload.comment] }
+            ? { ...t, comments: [...(t.comments || []), action.payload.comment] }
             : t
-        )
+        ),
       };
-    case 'UPDATE_NOTES':
+    case "UPDATE_NOTES":
       return {
         ...state,
-        tasks: state.tasks.map(t =>
+        tasks: state.tasks.map((t) =>
           t.id === action.payload.taskId ? { ...t, notes: action.payload.notes } : t
-        )
+        ),
       };
-    case 'TOGGLE_PUSHED':
+    case "TOGGLE_PUSHED":
       return {
         ...state,
-        tasks: state.tasks.map(t =>
+        tasks: state.tasks.map((t) =>
           t.id === action.payload ? { ...t, pushedToGitHub: !t.pushedToGitHub } : t
-        )
+        ),
       };
-    case 'MARK_SEEN':
+    case "MARK_SEEN":
       return {
         ...state,
-        seenTaskIds: new Set([...state.seenTaskIds, ...action.payload])
+        seenTaskIds: new Set([...state.seenTaskIds, ...action.payload]),
       };
-    case 'SET_CURRENT_USER':
+    case "SET_CURRENT_USER":
       return { ...state, currentUser: action.payload };
+    case "SET_LOADING":
+      return { ...state, loading: action.payload };
     default:
       return state;
   }
@@ -141,171 +167,134 @@ function taskReducer(state: AppState, action: Action): AppState {
 const TaskContext = createContext<{
   state: AppState;
   dispatch: (action: Action) => void;
+  refreshTasks: () => Promise<void>;
 } | null>(null);
 
-function capitalizeOwner(raw: string): User {
-  if (!raw) return 'Musab';
-  const lower = raw.toLowerCase();
-  if (lower === 'yusha') return 'Yusha';
-  if (lower === 'shared') return 'Shared';
-  return 'Musab';
-}
-
 export function TaskProvider({ children }: { children: React.ReactNode }) {
+  const { currentWorkspace, user } = useAuth();
   const [state, reactDispatch] = useReducer(taskReducer, initialState);
 
+  // Sync current user name into task state
   useEffect(() => {
-    let unsubTasks: () => void = () => {};
-    const unsubAuth = onAuthStateChanged(auth, (user) => {
-      if (user && user.email) {
-        const username = user.email.split('@')[0];
-        let name: "Musab" | "Yusha" = "Musab";
-        if (username.toLowerCase() === "yusha") name = "Yusha";
-        reactDispatch({ type: 'SET_CURRENT_USER', payload: name });
+    if (user?.name) {
+      reactDispatch({ type: "SET_CURRENT_USER", payload: user.name });
+    }
+  }, [user?.name]);
 
-        unsubTasks = onValue(dbRef('tasks'), async (snap) => {
-          const data = snap.val();
-          if (!data || Object.keys(data).length === 0) {
-            await seedIfEmpty();
-          } else {
-            const tasksArray: Task[] = [];
-            const activeWorkers: ActiveWorker[] = [];
-            const seenTaskIds = new Set<string>();
+  // Fetch tasks whenever active workspace changes
+  const fetchTasks = useCallback(async () => {
+    if (!currentWorkspace?.id) {
+      reactDispatch({ type: "SET_TASKS", payload: [] });
+      return;
+    }
 
-            Object.values(data).forEach((t: any) => {
-              const commentsArray: Comment[] = t.comments ? Object.values(t.comments) : [];
-              tasksArray.push({
-                id: t.id,
-                title: t.title || '',
-                description: t.description || t.desc || '',
-                owner: capitalizeOwner(t.owner),
-                category: t.category || t.cat || '',
-                priority: t.priority as Priority,
-                status: t.status as Status,
-                dueDate: t.dueDate || t.due || null,
-                notes: t.notes || '',
-                comments: commentsArray,
-                pushedToGitHub: t.pushedToGitHub || t.pushed || false,
-                assignedBy: t.assignedBy || '',
-                createdAt: t.createdAt || Date.now(),
-                doneAt: t.doneAt || undefined,
-              });
-
-              if (t.activeWorker) {
-                activeWorkers.push({
-                  taskId: t.id,
-                  user: capitalizeOwner(t.activeWorker),
-                  startTime: t.activeWorkerSince || Date.now()
-                });
-              }
-
-              if (t.seenBy && t.seenBy[name.toLowerCase()]) {
-                seenTaskIds.add(t.id);
-              }
-            });
-
-            reactDispatch({ 
-              type: 'SET_STATE_FROM_FIREBASE', 
-              payload: { tasks: tasksArray, activeWorkers, seenTaskIds } 
-            });
-          }
-        });
+    try {
+      const res = await fetch(`/api/workspaces/${currentWorkspace.id}/tasks`);
+      if (res.ok) {
+        const data = await res.json();
+        reactDispatch({ type: "SET_TASKS", payload: data.tasks || [] });
       }
-    });
+    } catch (e) {
+      console.warn("Failed to fetch tasks:", e);
+    }
+  }, [currentWorkspace?.id]);
 
-    return () => {
-      unsubAuth();
-      unsubTasks();
-    };
-  }, []);
+  useEffect(() => {
+    fetchTasks();
+    // Periodic refresh for team collaboration
+    const interval = setInterval(fetchTasks, 6000);
+    return () => clearInterval(interval);
+  }, [fetchTasks]);
 
   const dispatch = async (action: Action) => {
-    // Optimistic UI update
+    // 1. Optimistic React update
     reactDispatch(action);
 
-    // Firebase sync
+    if (!currentWorkspace?.id) return;
+    const wsId = currentWorkspace.id;
+
+    // 2. Persist to server API
     try {
       switch (action.type) {
-        case 'ADD_TASK': {
-          const newRef = push(dbRef('tasks'));
-          const taskToSave = { ...action.payload, id: newRef.key };
-          await set(newRef, taskToSave);
+        case "ADD_TASK": {
+          await fetch(`/api/workspaces/${wsId}/tasks`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(action.payload),
+          });
           break;
         }
-        case 'DELETE_TASK': {
-          await remove(dbRef(`tasks/${action.payload}`));
+        case "DELETE_TASK": {
+          await fetch(`/api/workspaces/${wsId}/tasks/${action.payload}`, {
+            method: "DELETE",
+          });
           break;
         }
-        case 'UPDATE_TASK': {
-          const currentTask = state.tasks.find(t => t.id === action.payload.id);
-          const updates: Record<string, any> = { ...action.payload };
-
-          // When marking as done, set doneAt timestamp
-          if (action.payload.status === 'done' && currentTask?.status !== 'done') {
-            updates.doneAt = Date.now();
-            updates.doneBy = state.currentUser;
+        case "UPDATE_TASK": {
+          await fetch(`/api/workspaces/${wsId}/tasks/${action.payload.id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(action.payload),
+          });
+          break;
+        }
+        case "SET_ACTIVE_WORKER": {
+          await fetch(`/api/workspaces/${wsId}/tasks/${action.payload.taskId}/active-worker`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ active: true, since: action.payload.startTime }),
+          });
+          break;
+        }
+        case "CLEAR_ACTIVE_WORKER": {
+          await fetch(`/api/workspaces/${wsId}/tasks/${action.payload}/active-worker`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ active: false }),
+          });
+          break;
+        }
+        case "ADD_COMMENT": {
+          await fetch(`/api/workspaces/${wsId}/tasks/${action.payload.taskId}/comments`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text: action.payload.comment.text }),
+          });
+          break;
+        }
+        case "UPDATE_NOTES": {
+          await fetch(`/api/workspaces/${wsId}/tasks/${action.payload.taskId}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ notes: action.payload.notes }),
+          });
+          break;
+        }
+        case "TOGGLE_PUSHED": {
+          const current = state.tasks.find((t) => t.id === action.payload);
+          if (current) {
+            await fetch(`/api/workspaces/${wsId}/tasks/${action.payload}`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ pushedToGitHub: !current.pushedToGitHub }),
+            });
           }
-
-          // When undoing from done, explicitly null out doneAt/doneBy (undefined is ignored by Firebase)
-          if (action.payload.status && action.payload.status !== 'done' && currentTask?.status === 'done') {
-            updates.doneAt = null;
-            updates.doneBy = null;
+          break;
+        }
+        case "MARK_SEEN": {
+          for (const taskId of action.payload) {
+            fetch(`/api/workspaces/${wsId}/tasks/${taskId}/seen`, { method: "POST" }).catch(() => {});
           }
-
-          // Remove undefined values since Firebase ignores them
-          Object.keys(updates).forEach(key => {
-            if (updates[key] === undefined) updates[key] = null;
-          });
-
-          await update(dbRef(`tasks/${action.payload.id}`), updates);
-          break;
-        }
-        case 'SET_ACTIVE_WORKER': {
-          await update(dbRef(`tasks/${action.payload.taskId}`), {
-            activeWorker: action.payload.user,
-            activeWorkerSince: action.payload.startTime
-          });
-          break;
-        }
-        case 'CLEAR_ACTIVE_WORKER': {
-          await update(dbRef(`tasks/${action.payload}`), {
-            activeWorker: null,
-            activeWorkerSince: null
-          });
-          break;
-        }
-        case 'ADD_COMMENT': {
-          const commentRef = dbRef(`tasks/${action.payload.taskId}/comments/${action.payload.comment.id}`);
-          await set(commentRef, action.payload.comment);
-          break;
-        }
-        case 'UPDATE_NOTES': {
-          await update(dbRef(`tasks/${action.payload.taskId}`), { notes: action.payload.notes });
-          break;
-        }
-        case 'TOGGLE_PUSHED': {
-          const task = state.tasks.find(t => t.id === action.payload);
-          if (task) {
-            await update(dbRef(`tasks/${action.payload}`), { pushedToGitHub: !task.pushedToGitHub });
-          }
-          break;
-        }
-        case 'MARK_SEEN': {
-          const updates: any = {};
-          action.payload.forEach(id => {
-            updates[`tasks/${id}/seenBy/${state.currentUser.toLowerCase()}`] = true;
-          });
-          await update(dbRef('/'), updates);
           break;
         }
       }
     } catch (e) {
-      console.error("Firebase update error:", e);
+      console.warn("Failed to sync task change to server:", e);
     }
   };
 
   return (
-    <TaskContext.Provider value={{ state, dispatch }}>
+    <TaskContext.Provider value={{ state, dispatch, refreshTasks: fetchTasks }}>
       {children}
     </TaskContext.Provider>
   );
@@ -314,7 +303,7 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
 export function useTaskContext() {
   const context = useContext(TaskContext);
   if (!context) {
-    throw new Error('useTaskContext must be used within a TaskProvider');
+    throw new Error("useTaskContext must be used within a TaskProvider");
   }
   return context;
 }

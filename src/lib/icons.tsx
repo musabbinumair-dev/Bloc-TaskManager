@@ -72,6 +72,9 @@ import {
   CheckCircle,
   ExternalLink,
   Sparkles,
+  Copy,
+  Link,
+  ArrowRight,
 } from "lucide-react";
 
 export {
@@ -147,6 +150,9 @@ export {
   CheckCircle,
   ExternalLink,
   Sparkles,
+  Copy,
+  Link,
+  ArrowRight,
 };
 
 /**
@@ -231,14 +237,8 @@ export function getOwnerIconComponent(owner: string, size: number = 13) {
   const strokeWidth = 2.4;
   const props = { size, strokeWidth, className: "shrink-0" };
 
-  switch (owner?.toLowerCase()) {
-    case "musab":
-      return <Terminal {...props} />;
-    case "yusha":
-      return <Palette {...props} />;
-    case "shared":
-      return <Users {...props} />;
-    default:
-      return <User {...props} />;
+  if (owner?.toLowerCase() === "shared") {
+    return <Users {...props} />;
   }
+  return <User {...props} />;
 }

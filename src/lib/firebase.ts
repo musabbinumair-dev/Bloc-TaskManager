@@ -15,18 +15,20 @@ import {
 } from "firebase/auth";
 
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyCfLNV1iFvLOSfG6LsucexiyIqOQl93hwE",
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "project-task-management-9a1a3.firebaseapp.com",
-  databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL || "https://project-task-management-9a1a3-default-rtdb.firebaseio.com",
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "project-task-management-9a1a3",
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "project-task-management-9a1a3.firebasestorage.app",
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "223873358690",
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:223873358690:web:8ac1a21f8cbf0d750dea3b"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "",
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "",
+  databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL || "",
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "",
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "",
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "",
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || ""
 };
 
-const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
-const auth = getAuth(app);
+// Safe initialization only when credentials are provided
+const hasConfig = Boolean(firebaseConfig.apiKey && firebaseConfig.projectId);
+const app = hasConfig ? initializeApp(firebaseConfig) : ({} as any);
+const db = hasConfig ? getDatabase(app) : ({} as any);
+const auth = hasConfig ? getAuth(app) : ({} as any);
 
 export const dbRef = (path: string) => ref(db, path);
 export {

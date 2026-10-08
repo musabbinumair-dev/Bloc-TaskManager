@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Task, User } from "@/lib/task-context";
+import { Task } from "@/lib/task-context";
 import { useTaskContext } from "@/lib/task-context";
 import {
   getOwnerStyle,
@@ -30,7 +30,6 @@ import {
 
 const STATUSES: Array<Task["status"]> = ["todo", "progress", "testing", "blocked", "done"];
 const PRIORITIES: Array<Task["priority"]> = ["high", "medium", "low"];
-const OWNERS: User[] = ["Musab", "Yusha", "Shared"];
 
 interface TaskCardProps {
   task: Task;
@@ -69,7 +68,7 @@ export default function TaskCard({ task, isUnseen = false }: TaskCardProps) {
     dispatch({ type: "UPDATE_TASK", payload: { id: task.id, priority: newPriority } });
   }
 
-  function handleAssign(owner: User) {
+  function handleAssign(owner: string) {
     dispatch({ type: "UPDATE_TASK", payload: { id: task.id, owner } });
   }
 
@@ -343,24 +342,20 @@ export default function TaskCard({ task, isUnseen = false }: TaskCardProps) {
               {task.priority.toUpperCase()}
             </div>
             <div className="flex gap-1 flex-wrap">
-              {OWNERS.map((owner) => (
-                <div
-                  data-testid={`static-assign-${owner}-${task.id}`}
-                  key={owner}
-                  style={{
-                    padding: "4px 7px",
-                    border: "2px solid #000",
-                    fontFamily: "'Space Grotesk', sans-serif",
-                    fontWeight: 700,
-                    fontSize: "10px",
-                    ...(task.owner === owner ? getOwnerStyle(owner) : { backgroundColor: "#F5F0E8", color: "#000" }),
-                    boxShadow: task.owner === owner ? "2px 2px 0 #000" : "none",
-                    opacity: task.owner === owner ? 1 : 0.6,
-                  }}
-                >
-                  {owner.toUpperCase()}
-                </div>
-              ))}
+              <div
+                data-testid={`static-assign-${task.owner}-${task.id}`}
+                style={{
+                  padding: "4px 8px",
+                  border: "2px solid #000",
+                  fontFamily: "'Space Grotesk', sans-serif",
+                  fontWeight: 700,
+                  fontSize: "10px",
+                  ...getOwnerStyle(task.owner),
+                  boxShadow: "2px 2px 0 #000",
+                }}
+              >
+                {task.owner.toUpperCase()}
+              </div>
             </div>
           </div>
 

@@ -24,14 +24,8 @@ export const DEFAULT_PREFERENCES: UserPreferences = {
   soundEffects: true,
   themeAccent: "yellow",
   shadowStyle: "bold",
-  customRoleTitle: {
-    Musab: "Lead Full-Stack Systems Engineer",
-    Yusha: "Lead Product & UI/UX Designer",
-  },
-  bioStatus: {
-    Musab: "Refactoring database sync and core sprint tasks",
-    Yusha: "Polishing responsive brutalist design and animations",
-  },
+  customRoleTitle: {},
+  bioStatus: {},
 };
 
 export function loadUserPreferences(): UserPreferences {

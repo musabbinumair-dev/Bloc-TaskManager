@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useTaskContext } from "@/lib/task-context";
-import { User } from "@/lib/task-context";
 import { getOwnerStyle } from "@/lib/helpers";
 import TaskBoard from "@/components/TaskBoard";
 import { Search, X, getOwnerIconComponent } from "@/lib/icons";
@@ -10,18 +9,20 @@ const PRIORITIES = ["All", "high", "medium", "low"];
 const STATUSES = ["All", "todo", "progress", "testing", "blocked", "done"];
 
 interface TrackPageProps {
-  owner: User;
+  owner: string;
 }
 
 export default function TrackPage({ owner }: TrackPageProps) {
   const { state } = useTaskContext();
-  const isMyTrack = owner.toLowerCase() === state.currentUser.toLowerCase() || owner === "Shared";
+  const effectiveOwner = owner === "me" ? state.currentUser : owner;
+  const isMyTrack = effectiveOwner.toLowerCase() === state.currentUser.toLowerCase() || effectiveOwner.toLowerCase() === "shared";
+
   const [search, setSearch] = useState("");
   const [catFilter, setCatFilter] = useState("All");
   const [priFilter, setPriFilter] = useState("All");
   const [statusFilter, setStatusFilter] = useState("All");
 
-  const all = state.tasks.filter((t) => t.owner.toLowerCase() === owner.toLowerCase());
+  const all = state.tasks.filter((t) => t.owner.toLowerCase() === effectiveOwner.toLowerCase());
   const open = all.filter((t) => t.status !== "done").length;
   const done = all.filter((t) => t.status === "done").length;
 
@@ -51,13 +52,13 @@ export default function TrackPage({ owner }: TrackPageProps) {
     <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
       {/* Page header */}
       <div className="px-3.5 py-2.5 sm:px-5 sm:py-3.5 border-b-[3px] border-black bg-black text-[#FFE600] flex items-center gap-3 shrink-0">
-        <div style={{ ...getOwnerStyle(owner), width: "32px", height: "32px", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: "16px", border: "2px solid #FFE600", gap: "2px" }}>
-          {owner[0]}
+        <div style={{ ...getOwnerStyle(effectiveOwner), width: "32px", height: "32px", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: "16px", border: "2px solid #FFE600", gap: "2px" }}>
+          {effectiveOwner[0]?.toUpperCase() || "T"}
         </div>
         <div>
           <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: "16px", letterSpacing: "0.05em", display: "flex", alignItems: "center", gap: "6px" }}>
-            <span>{owner === "Shared" ? "SHARED TRACK" : `${owner.toUpperCase()}'S TRACK`}</span>
-            <span className="opacity-75">{getOwnerIconComponent(owner, 15)}</span>
+            <span>{effectiveOwner.toLowerCase() === "shared" ? "SHARED TRACK" : `${effectiveOwner.toUpperCase()}'S TRACK`}</span>
+            <span className="opacity-75">{getOwnerIconComponent(effectiveOwner, 15)}</span>
           </div>
           <div style={{ fontSize: "11px", color: "#FFE600AA" }}>{open} open · {done} done</div>
         </div>
@@ -78,37 +79,28 @@ export default function TrackPage({ owner }: TrackPageProps) {
           <Search size={14} strokeWidth={2.4} className="absolute left-2.5 pointer-events-none text-gray-500" />
         </div>
         <select data-testid="select-category-filter" value={catFilter} onChange={(e) => setCatFilter(e.target.value)} style={inputStyle}>
-          {CATEGORIES.map((c) => <option key={c} value={c}>{c === "All" ? "ALL CATEGORIES" : c}</option>)}
+          {CATEGORIES.map((c) => <option key={c} value={c}>{c === "All" ? "All Categories" : c}</option>)}
         </select>
         <select data-testid="select-priority-filter" value={priFilter} onChange={(e) => setPriFilter(e.target.value)} style={inputStyle}>
-          {PRIORITIES.map((p) => <option key={p} value={p}>{p === "All" ? "ALL PRIORITIES" : p.toUpperCase()}</option>)}
+          {PRIORITIES.map((p) => <option key={p} value={p}>{p === "All" ? "All Priorities" : `${p.toUpperCase()} Priority`}</option>)}
         </select>
         <select data-testid="select-status-filter" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} style={inputStyle}>
-          {STATUSES.map((s) => <option key={s} value={s}>{s === "All" ? "ALL STATUSES" : s.toUpperCase()}</option>)}
+          {STATUSES.map((s) => <option key={s} value={s}>{s === "All" ? "All Statuses" : s.toUpperCase()}</option>)}
         </select>
         {hasFilters && (
           <button
             data-testid="button-clear-filters"
             onClick={() => { setSearch(""); setCatFilter("All"); setPriFilter("All"); setStatusFilter("All"); }}
-            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#FFE600'; e.currentTarget.style.color = '#000'; e.currentTarget.style.borderColor = '#FFE600'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#FF0033'; e.currentTarget.style.color = '#fff'; e.currentTarget.style.borderColor = '#FF0033'; }}
-            style={{ padding: "6px 14px", border: "2px solid #000", backgroundColor: "#FF0033", color: "#fff", fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: "11px", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "4px", transition: "background-color 0.2s, color 0.2s, border-color 0.2s" }}
+            style={{ ...inputStyle, backgroundColor: "#FF0033", color: "#fff", display: "flex", alignItems: "center", gap: "4px" }}
           >
-            <X size={12} strokeWidth={2.6} />
-            CLEAR FILTERS
+            <X size={12} strokeWidth={2.6} /> Clear
           </button>
         )}
       </div>
 
       {/* Board */}
-      <div className="flex-1 overflow-y-auto p-3 sm:p-5">
-        {filtered.length === 0 ? (
-          <div style={{ border: "3px dashed #ccc", padding: "40px", textAlign: "center", color: "#999", fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600 }}>
-            NO TASKS FOUND
-          </div>
-        ) : (
-          <TaskBoard tasks={filtered} showNewAssignments={isMyTrack} showCurrentlyActive={isMyTrack} />
-        )}
+      <div style={{ flex: 1, overflow: "hidden" }}>
+        <TaskBoard tasks={filtered} showNewAssignments={isMyTrack} showCurrentlyActive={isMyTrack} />
       </div>
     </div>
   );

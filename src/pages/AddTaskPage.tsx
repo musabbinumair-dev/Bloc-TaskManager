@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
+import { useAuth } from "@/lib/auth-context";
 import { useTaskContext } from "@/lib/task-context";
-import { Task, User } from "@/lib/task-context";
+import { Task } from "@/lib/task-context";
 import { generateId, getStatusLabel } from "@/lib/helpers";
 import { useToastNotification } from "@/components/ToastContainer";
 import {
@@ -20,16 +21,19 @@ const DEFAULT_CATEGORIES = ["Core", "Backend", "Frontend", "Security", "Analytic
 const STATUSES: Array<Task["status"]> = ["todo", "progress", "testing", "blocked", "done"];
 
 export default function AddTaskPage() {
+  const { user, members } = useAuth();
   const { state, dispatch } = useTaskContext();
   const { showToast } = useToastNotification();
 
-  // Derive categories from existing tasks in Firebase, merged with defaults
+  const ownerOptions = [...new Set([...members.map((m) => m.name), "Shared"])];
+
+  // Derive categories from existing tasks in database, merged with defaults
   const dbCategories = [...new Set(state.tasks.map((t) => t.category).filter(Boolean))];
   const allCategories = [...new Set([...dbCategories, ...DEFAULT_CATEGORIES])].sort();
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [owner, setOwner] = useState<User>(state.currentUser);
+  const [owner, setOwner] = useState<string>(user?.name || "Shared");
   const [category, setCategory] = useState("Frontend");
   const [priority, setPriority] = useState<Task["priority"]>("medium");
   const [status, setStatus] = useState<Task["status"]>("todo");
@@ -37,6 +41,12 @@ export default function AddTaskPage() {
   const [showCalendar, setShowCalendar] = useState(false);
   const [calMonth, setCalMonth] = useState(new Date());
   const calRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (user?.name && !owner) {
+      setOwner(user.name);
+    }
+  }, [user?.name]);
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -53,9 +63,10 @@ export default function AddTaskPage() {
     if (!title.trim()) return;
     const newTask: Task = {
       id: generateId(),
+      workspaceId: "",
       title: title.trim(),
       description: description.trim(),
-      owner,
+      owner: owner || user?.name || "Shared",
       category,
       priority,
       status,
@@ -63,17 +74,13 @@ export default function AddTaskPage() {
       notes: "",
       comments: [],
       pushedToGitHub: false,
-      assignedBy: state.currentUser,
+      assignedBy: user?.name || "Member",
       createdAt: Date.now(),
     };
     dispatch({ type: "ADD_TASK", payload: newTask });
     showToast(`Task "${newTask.title}" added!`, "success");
     setTitle("");
     setDescription("");
-    setOwner(state.currentUser);
-    setCategory("Frontend");
-    setPriority("medium");
-    setStatus("todo");
     setDueDate(null);
   }
 
@@ -201,13 +208,13 @@ export default function AddTaskPage() {
               <select
                 data-testid="select-task-owner"
                 value={owner}
-                onChange={(e) => setOwner(e.target.value as User)}
+                onChange={(e) => setOwner(e.target.value)}
                 className="w-full lg:w-auto"
                 style={{ padding: "10px 12px", border: "2px solid #000", boxShadow: "2px 2px 0 #000", backgroundColor: "#fff", fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600, fontSize: "13px", cursor: "pointer", outline: "none" }}
               >
-                <option value="Musab">Musab</option>
-                <option value="Yusha">Yusha</option>
-                <option value="Shared">Shared</option>
+                {ownerOptions.map((opt) => (
+                  <option key={opt} value={opt}>{opt}</option>
+                ))}
               </select>
             </div>
 

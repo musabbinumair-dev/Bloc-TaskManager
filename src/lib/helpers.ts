@@ -1,4 +1,5 @@
-import { User, Status, Priority } from "./task-context";
+import { Status, Priority } from "./task-context";
+import React from "react";
 
 export function timeAgo(timestamp: number): string {
   const diff = Date.now() - timestamp;
@@ -19,21 +20,40 @@ export function timeElapsed(startTime: number): string {
   return `${mins}m`;
 }
 
-export function getOwnerStyle(owner: User): React.CSSProperties {
-  if (owner === "Musab") return { backgroundColor: "#FFE600", color: "#000", border: "2px solid #000" };
-  if (owner === "Yusha") return { backgroundColor: "#0055FF", color: "#fff", border: "2px solid #000" };
-  return { backgroundColor: "#00CC44", color: "#000", border: "2px solid #000" };
+const BRUTALIST_PALETTE = [
+  { bg: "#FFE600", text: "#000" }, // Yellow
+  { bg: "#0055FF", text: "#fff" }, // Blue
+  { bg: "#00CC44", text: "#000" }, // Green
+  { bg: "#FF0033", text: "#fff" }, // Red
+  { bg: "#9D00FF", text: "#fff" }, // Purple
+  { bg: "#FF8800", text: "#000" }, // Orange
+  { bg: "#00D0E8", text: "#000" }, // Cyan
+  { bg: "#FF00AA", text: "#fff" }, // Pink
+];
+
+export function getOwnerPalette(owner: string): { bg: string; text: string } {
+  if (!owner || owner.toLowerCase() === "shared") {
+    return { bg: "#00CC44", text: "#000" };
+  }
+  let hash = 0;
+  for (let i = 0; i < owner.length; i++) {
+    hash = owner.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const index = Math.abs(hash) % BRUTALIST_PALETTE.length;
+  return BRUTALIST_PALETTE[index];
 }
 
-export function getOwnerBg(owner: User): string {
-  if (owner === "Musab") return "#FFE600";
-  if (owner === "Yusha") return "#0055FF";
-  return "#00CC44";
+export function getOwnerStyle(owner: string): React.CSSProperties {
+  const p = getOwnerPalette(owner);
+  return { backgroundColor: p.bg, color: p.text, border: "2px solid #000" };
 }
 
-export function getOwnerTextColor(owner: User): string {
-  if (owner === "Yusha") return "#fff";
-  return "#000";
+export function getOwnerBg(owner: string): string {
+  return getOwnerPalette(owner).bg;
+}
+
+export function getOwnerTextColor(owner: string): string {
+  return getOwnerPalette(owner).text;
 }
 
 export function getStatusStyle(status: Status): React.CSSProperties {
@@ -111,6 +131,3 @@ export function formatDate(dueDate: string): string {
 export function generateId(): string {
   return Math.random().toString(36).slice(2, 11);
 }
-
-// Need React for CSSProperties type
-import React from "react";
