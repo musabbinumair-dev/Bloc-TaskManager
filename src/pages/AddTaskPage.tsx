@@ -3,6 +3,18 @@ import { useTaskContext } from "@/lib/task-context";
 import { Task, User } from "@/lib/task-context";
 import { generateId, getStatusLabel } from "@/lib/helpers";
 import { useToastNotification } from "@/components/ToastContainer";
+import {
+  PlusSquare,
+  Plus,
+  Calendar,
+  ChevronLeft,
+  ChevronRight,
+  X,
+  getCategoryIcon,
+  getPriorityIconComponent,
+  getStatusIconComponent,
+  getOwnerIconComponent,
+} from "@/lib/icons";
 
 const DEFAULT_CATEGORIES = ["Core", "Backend", "Frontend", "Security", "Analytics", "Billing", "Notifications", "Display", "Bugfix", "DevOps"];
 const STATUSES: Array<Task["status"]> = ["todo", "progress", "testing", "blocked", "done"];
@@ -97,9 +109,13 @@ export default function AddTaskPage() {
         }}
       >
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px" }}>
-          <button onClick={() => setCalMonth(new Date(year, month - 1, 1))} style={{ border: "2px solid #000", backgroundColor: "#F5F0E8", width: "28px", height: "28px", cursor: "pointer", fontWeight: 700 }}>←</button>
+          <button onClick={() => setCalMonth(new Date(year, month - 1, 1))} style={{ border: "2px solid #000", backgroundColor: "#F5F0E8", width: "28px", height: "28px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <ChevronLeft size={14} strokeWidth={2.6} />
+          </button>
           <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: "13px" }}>{monthNames[month]} {year}</span>
-          <button onClick={() => setCalMonth(new Date(year, month + 1, 1))} style={{ border: "2px solid #000", backgroundColor: "#F5F0E8", width: "28px", height: "28px", cursor: "pointer", fontWeight: 700 }}>→</button>
+          <button onClick={() => setCalMonth(new Date(year, month + 1, 1))} style={{ border: "2px solid #000", backgroundColor: "#F5F0E8", width: "28px", height: "28px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <ChevronRight size={14} strokeWidth={2.6} />
+          </button>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: "2px" }}>
           {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((d) => (
@@ -139,18 +155,18 @@ export default function AddTaskPage() {
   }
 
   return (
-    <div style={{ padding: "20px" }}>
+    <div className="p-3 sm:p-5">
       {/* Page header */}
-      <div style={{ display: "flex", alignItems: "center", gap: "12px", padding: "12px 16px", border: "3px solid #000", boxShadow: "4px 4px 0 #000", backgroundColor: "#000", color: "#FFE600", marginBottom: "20px" }}>
-        <span style={{ fontSize: "20px" }}>＋</span>
-        <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: "18px", letterSpacing: "0.05em" }}>ADD NEW TASK</div>
+      <div className="px-3.5 py-2.5 sm:px-4 sm:py-3 border-[3px] border-black bg-black text-[#FFE600] flex items-center gap-3 mb-4 shadow-[4px_4px_0_#000]">
+        <PlusSquare size={20} strokeWidth={2.6} className="text-[#FFE600] shrink-0" />
+        <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: "16px", letterSpacing: "0.05em" }}>ADD NEW TASK</div>
       </div>
 
       <form onSubmit={handleSubmit}>
-        <div style={{ border: "3px solid #000", boxShadow: "6px 6px 0 #000", backgroundColor: "#F5F0E8", padding: "24px", display: "flex", flexDirection: "column", gap: "16px" }}>
+        <div className="border-[3px] border-black bg-[#F5F0E8] p-3.5 sm:p-6 flex flex-col gap-4 shadow-[5px_5px_0_#000]">
           {/* Row 1: title + description */}
-          <div style={{ display: "flex", gap: "12px" }}>
-            <div style={{ flex: 2 }}>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="flex-1 sm:flex-[2]">
               <label style={{ display: "block", fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: "11px", letterSpacing: "0.1em", marginBottom: "6px" }}>TASK TITLE *</label>
               <input
                 data-testid="input-task-title"
@@ -162,7 +178,7 @@ export default function AddTaskPage() {
                 style={{ width: "100%", padding: "10px 12px", border: "2px solid #000", boxShadow: "2px 2px 0 #000", backgroundColor: "#fff", fontFamily: "'Inter', sans-serif", fontSize: "14px", outline: "none", boxSizing: "border-box" }}
               />
             </div>
-            <div style={{ flex: 1 }}>
+            <div className="flex-1">
               <label style={{ display: "block", fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: "11px", letterSpacing: "0.1em", marginBottom: "6px" }}>SHORT DESCRIPTION</label>
               <input
                 data-testid="input-task-description"
@@ -175,14 +191,18 @@ export default function AddTaskPage() {
             </div>
           </div>
 
-          {/* Row 2: owner + category + priority + due date + submit */}
-          <div style={{ display: "flex", gap: "10px", alignItems: "flex-end", flexWrap: "wrap" }}>
-            <div>
-              <label style={{ display: "block", fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: "11px", letterSpacing: "0.1em", marginBottom: "6px" }}>OWNER</label>
+          {/* Row 2: owner + category + priority + status + due date + submit */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:flex lg:flex-wrap gap-3 items-end">
+            <div className="w-full lg:w-auto">
+              <label style={{ display: "flex", alignItems: "center", gap: "5px", fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: "11px", letterSpacing: "0.1em", marginBottom: "6px" }}>
+                {getOwnerIconComponent(owner, 12)}
+                <span>OWNER</span>
+              </label>
               <select
                 data-testid="select-task-owner"
                 value={owner}
                 onChange={(e) => setOwner(e.target.value as User)}
+                className="w-full lg:w-auto"
                 style={{ padding: "10px 12px", border: "2px solid #000", boxShadow: "2px 2px 0 #000", backgroundColor: "#fff", fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600, fontSize: "13px", cursor: "pointer", outline: "none" }}
               >
                 <option value="Musab">Musab</option>
@@ -191,24 +211,32 @@ export default function AddTaskPage() {
               </select>
             </div>
 
-            <div>
-              <label style={{ display: "block", fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: "11px", letterSpacing: "0.1em", marginBottom: "6px" }}>CATEGORY</label>
+            <div className="w-full lg:w-auto">
+              <label style={{ display: "flex", alignItems: "center", gap: "5px", fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: "11px", letterSpacing: "0.1em", marginBottom: "6px" }}>
+                {getCategoryIcon(category, 12)}
+                <span>CATEGORY</span>
+              </label>
               <select
                 data-testid="input-task-category"
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
-                style={{ padding: "10px 12px", border: "2px solid #000", boxShadow: "2px 2px 0 #000", backgroundColor: "#fff", fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600, fontSize: "13px", outline: "none", cursor: "pointer", minWidth: "140px" }}
+                className="w-full lg:w-auto"
+                style={{ padding: "10px 12px", border: "2px solid #000", boxShadow: "2px 2px 0 #000", backgroundColor: "#fff", fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600, fontSize: "13px", outline: "none", cursor: "pointer", minWidth: "130px" }}
               >
                 {allCategories.map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
 
-            <div>
-              <label style={{ display: "block", fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: "11px", letterSpacing: "0.1em", marginBottom: "6px" }}>PRIORITY</label>
+            <div className="w-full lg:w-auto">
+              <label style={{ display: "flex", alignItems: "center", gap: "5px", fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: "11px", letterSpacing: "0.1em", marginBottom: "6px" }}>
+                {getPriorityIconComponent(priority, 12)}
+                <span>PRIORITY</span>
+              </label>
               <select
                 data-testid="select-task-priority"
                 value={priority}
                 onChange={(e) => setPriority(e.target.value as Task["priority"])}
+                className="w-full lg:w-auto"
                 style={{ padding: "10px 12px", border: "2px solid #000", boxShadow: "2px 2px 0 #000", backgroundColor: "#fff", fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600, fontSize: "13px", cursor: "pointer", outline: "none" }}
               >
                 <option value="high">HIGH</option>
@@ -217,12 +245,16 @@ export default function AddTaskPage() {
               </select>
             </div>
 
-            <div>
-              <label style={{ display: "block", fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: "11px", letterSpacing: "0.1em", marginBottom: "6px" }}>STATUS</label>
+            <div className="w-full lg:w-auto">
+              <label style={{ display: "flex", alignItems: "center", gap: "5px", fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: "11px", letterSpacing: "0.1em", marginBottom: "6px" }}>
+                {getStatusIconComponent(status, 12)}
+                <span>STATUS</span>
+              </label>
               <select
                 data-testid="select-task-status"
                 value={status}
                 onChange={(e) => setStatus(e.target.value as Task["status"])}
+                className="w-full lg:w-auto"
                 style={{ padding: "10px 12px", border: "2px solid #000", boxShadow: "2px 2px 0 #000", backgroundColor: "#fff", fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600, fontSize: "13px", cursor: "pointer", outline: "none" }}
               >
                 {STATUSES.map((s) => (
@@ -231,60 +263,75 @@ export default function AddTaskPage() {
               </select>
             </div>
 
-            <div style={{ position: "relative" }}>
+            <div className="w-full lg:w-auto relative">
               <label style={{ display: "block", fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: "11px", letterSpacing: "0.1em", marginBottom: "6px" }}>DUE DATE</label>
-              <button
-                data-testid="button-due-date"
-                type="button"
-                onClick={() => setShowCalendar((v) => !v)}
-                style={{
-                  padding: "10px 12px",
-                  border: "2px solid #000",
-                  boxShadow: "2px 2px 0 #000",
-                  backgroundColor: dueDate ? "#FFE600" : "#fff",
-                  fontFamily: "'Space Grotesk', sans-serif",
-                  fontWeight: 600,
-                  fontSize: "12px",
-                  cursor: "pointer",
-                  minWidth: "120px",
-                }}
-              >
-                {dueDate ? new Date(dueDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "PICK DATE"}
-              </button>
+              <div className="flex gap-2">
+                <button
+                  data-testid="button-due-date"
+                  type="button"
+                  onClick={() => setShowCalendar((v) => !v)}
+                  className="flex-1 lg:flex-initial"
+                  style={{
+                    padding: "10px 12px",
+                    border: "2px solid #000",
+                    boxShadow: "2px 2px 0 #000",
+                    backgroundColor: dueDate ? "#FFE600" : "#fff",
+                    fontFamily: "'Space Grotesk', sans-serif",
+                    fontWeight: 600,
+                    fontSize: "12px",
+                    cursor: "pointer",
+                    minWidth: "120px",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "6px",
+                  }}
+                >
+                  <Calendar size={13} strokeWidth={2.4} />
+                  {dueDate ? new Date(dueDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "PICK DATE"}
+                </button>
+                {dueDate && (
+                  <button
+                    data-testid="button-clear-due-date"
+                    type="button"
+                    onClick={() => setDueDate(null)}
+                    style={{ padding: "10px 12px", border: "2px solid #000", backgroundColor: "#F5F0E8", fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600, fontSize: "12px", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "4px" }}
+                  >
+                    <X size={12} strokeWidth={2.6} />
+                    CLEAR
+                  </button>
+                )}
+              </div>
               {showCalendar && renderCalendar()}
             </div>
 
-            {dueDate && (
+            <div className="col-span-full lg:ml-auto w-full lg:w-auto pt-2 lg:pt-0">
               <button
-                data-testid="button-clear-due-date"
-                type="button"
-                onClick={() => setDueDate(null)}
-                style={{ padding: "10px 12px", border: "2px solid #000", backgroundColor: "#F5F0E8", fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600, fontSize: "12px", cursor: "pointer", alignSelf: "flex-end" }}
+                data-testid="button-add-task"
+                type="submit"
+                className="w-full lg:w-auto"
+                style={{
+                  padding: "12px 24px",
+                  backgroundColor: "#000",
+                  color: "#FFE600",
+                  border: "2px solid #000",
+                  boxShadow: "4px 4px 0 #FFE600",
+                  fontFamily: "'Space Grotesk', sans-serif",
+                  fontWeight: 700,
+                  fontSize: "13px",
+                  letterSpacing: "0.05em",
+                  cursor: "pointer",
+                  minHeight: "44px",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "6px",
+                }}
               >
-                CLEAR DATE
+                <Plus size={16} strokeWidth={3} />
+                ADD TASK
               </button>
-            )}
-
-            <button
-              data-testid="button-add-task"
-              type="submit"
-              style={{
-                padding: "10px 24px",
-                backgroundColor: "#000",
-                color: "#FFE600",
-                border: "2px solid #000",
-                boxShadow: "4px 4px 0 #FFE600",
-                fontFamily: "'Space Grotesk', sans-serif",
-                fontWeight: 700,
-                fontSize: "13px",
-                letterSpacing: "0.05em",
-                cursor: "pointer",
-                alignSelf: "flex-end",
-                marginLeft: "auto",
-              }}
-            >
-              ADD TASK →
-            </button>
+            </div>
           </div>
         </div>
       </form>

@@ -1,6 +1,24 @@
 import { useState } from "react";
 import { useTaskContext } from "@/lib/task-context";
 import { getOwnerStyle, timeAgo, timeElapsed, getStatusAccentColor } from "@/lib/helpers";
+import {
+  LayoutDashboard,
+  Trophy,
+  X,
+  Flame,
+  CheckCircle2,
+  Check,
+  Activity,
+  AlertOctagon,
+  AlertTriangle,
+  FolderKanban,
+  FlaskConical,
+  Clock,
+  getCategoryIcon,
+  getPriorityIconComponent,
+  getStatusIconComponent,
+  getOwnerIconComponent,
+} from "@/lib/icons";
 
 const CATEGORIES = ["Core", "Backend", "Frontend", "Security", "Analytics", "Billing", "Notifications", "Display", "Bugfix", "DevOps"];
 
@@ -39,57 +57,68 @@ export default function DashboardPage() {
   const MEMBERS = ["Musab", "Yusha", "Shared"] as const;
 
   return (
-    <div style={{ padding: "20px", display: "flex", flexDirection: "column", gap: "20px" }}>
+    <div className="p-3 sm:p-5 flex flex-col gap-3 sm:gap-5">
       {/* Page header */}
-      <div style={{ display: "flex", alignItems: "center", gap: "12px", padding: "12px 16px", border: "3px solid #000", boxShadow: "4px 4px 0 #000", backgroundColor: "#000", color: "#FFE600" }}>
-        <span style={{ fontSize: "20px" }}>▣</span>
+      <div style={{ display: "flex", alignItems: "center", gap: "10px", padding: "10px 14px", border: "3px solid #000", boxShadow: "4px 4px 0 #000", backgroundColor: "#000", color: "#FFE600" }}>
+        <LayoutDashboard size={20} strokeWidth={2.6} className="text-[#FFE600] shrink-0" />
         <div>
-          <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: "18px", letterSpacing: "0.05em" }}>TEAM DASHBOARD</div>
-          <div style={{ fontSize: "12px", color: "#FFE600AA" }}>{new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}</div>
+          <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: "16px", letterSpacing: "0.05em" }}>TEAM DASHBOARD</div>
+          <div style={{ fontSize: "11px", color: "#FFE600AA" }}>{new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}</div>
         </div>
       </div>
 
       {/* Last Completed Banner */}
       {lastDone && !bannerDismissed && (
-        <div style={{ border: "3px solid #000", boxShadow: "4px 4px 0 #FFE600", backgroundColor: "#fffdf5", padding: "12px 16px", display: "flex", alignItems: "center", gap: "12px" }}>
-          <span style={{ fontSize: "20px" }}>🏆</span>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: "10px", fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, color: "#888", letterSpacing: "0.1em" }}>LATEST COMPLETED TASK</div>
-            <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: "14px" }}>{lastDone.title}</div>
-            <div style={{ fontSize: "11px", color: "#666" }}>
-              Finished by <strong>{lastDone.owner}</strong> · {timeAgo(lastDone.doneAt ?? lastDone.createdAt)}
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 p-3 sm:p-4" style={{ border: "3px solid #000", boxShadow: "4px 4px 0 #FFE600", backgroundColor: "#fffdf5" }}>
+          <div className="flex items-center gap-3">
+            <div style={{ width: "32px", height: "32px", backgroundColor: "#FFE600", border: "2px solid #000", boxShadow: "2px 2px 0 #000", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <Trophy size={18} strokeWidth={2.6} color="#000" />
             </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: "9px", fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, color: "#888", letterSpacing: "0.1em" }}>LATEST COMPLETED TASK</div>
+              <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: "13px" }}>{lastDone.title}</div>
+              <div style={{ fontSize: "11px", color: "#666" }}>
+                Finished by <strong>{lastDone.owner}</strong> · {timeAgo(lastDone.doneAt ?? lastDone.createdAt)}
+              </div>
+            </div>
+            <button
+              data-testid="button-dismiss-banner"
+              onClick={() => setBannerDismissed(true)}
+              className="sm:hidden ml-auto"
+              style={{ border: "2px solid #000", backgroundColor: "#F5F0E8", width: "26px", height: "26px", cursor: "pointer", fontWeight: 700, fontSize: "12px", display: "flex", alignItems: "center", justifyContent: "center" }}
+            >
+              <X size={14} strokeWidth={2.6} />
+            </button>
           </div>
           <button
             data-testid="button-dismiss-banner"
             onClick={() => setBannerDismissed(true)}
-            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#FF0033'; e.currentTarget.style.color = '#fff'; e.currentTarget.style.borderColor = '#FF0033'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#F5F0E8'; e.currentTarget.style.color = '#000'; e.currentTarget.style.borderColor = '#000'; }}
-            style={{ border: "2px solid #000", backgroundColor: "#F5F0E8", width: "28px", height: "28px", cursor: "pointer", fontWeight: 700, fontSize: "14px", transition: "background-color 0.2s, color 0.2s, border-color 0.2s" }}
+            className="hidden sm:flex ml-auto items-center justify-center"
+            style={{ border: "2px solid #000", backgroundColor: "#F5F0E8", width: "28px", height: "28px", cursor: "pointer", fontWeight: 700 }}
           >
-            ✕
+            <X size={14} strokeWidth={2.6} />
           </button>
         </div>
       )}
 
       {/* Stats Row */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "16px" }}>
-        <StatCard label="TOTAL TASKS" value={total} sub="across all tracks" accentColor="#FFE600" />
-        <StatCard label="COMPLETED" value={done} sub={`${completionRate}% rate`} accentColor="#00CC44" />
-        <StatCard label="IN PROGRESS" value={inProgress} sub={`${testing} in testing`} accentColor="#0055FF" />
-        <StatCard label="BLOCKED" value={blocked} sub="need attention" accentColor="#FF0033" valueColor="#FF0033" />
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 sm:gap-4">
+        <StatCard label="TOTAL TASKS" value={total} sub="across all tracks" accentColor="#FFE600" icon={FolderKanban} />
+        <StatCard label="COMPLETED" value={done} sub={`${completionRate}% rate`} accentColor="#00CC44" icon={CheckCircle2} />
+        <StatCard label="IN PROGRESS" value={inProgress} sub={`${testing} in testing`} accentColor="#0055FF" icon={Activity} />
+        <StatCard label="BLOCKED" value={blocked} sub="need attention" accentColor="#FF0033" valueColor="#FF0033" icon={AlertOctagon} />
       </div>
 
       {/* Overall Progress Bar */}
-      <div style={{ border: "3px solid #000", boxShadow: "4px 4px 0 #000", backgroundColor: "#F5F0E8", padding: "16px" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "12px" }}>
-          <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: "13px", letterSpacing: "0.05em" }}>OVERALL PROJECT PROGRESS</div>
-          <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600, fontSize: "12px", color: "#444" }}>
+      <div style={{ border: "3px solid #000", boxShadow: "4px 4px 0 #000", backgroundColor: "#F5F0E8", padding: "14px" }}>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 mb-2.5">
+          <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: "12px", letterSpacing: "0.05em" }}>OVERALL PROJECT PROGRESS</div>
+          <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600, fontSize: "11px", color: "#444" }}>
             {completionRate}% Complete · {done}/{total}
           </div>
         </div>
         {/* Segmented bar */}
-        <div style={{ height: "24px", border: "3px solid #000", display: "flex", overflow: "hidden", backgroundColor: "#CCCCCC" }}>
+        <div style={{ height: "20px", border: "3px solid #000", display: "flex", overflow: "hidden", backgroundColor: "#CCCCCC" }}>
           {done > 0 && <div style={{ flex: done, backgroundColor: "#00CC44", borderRight: done < total ? "1px solid #000" : "none" }} />}
           {inProgress > 0 && <div style={{ flex: inProgress, backgroundColor: "#0055FF", borderRight: "1px solid #000" }} />}
           {testing > 0 && <div style={{ flex: testing, backgroundColor: "#9D00FF", borderRight: "1px solid #000" }} />}
@@ -97,51 +126,63 @@ export default function DashboardPage() {
           {todo > 0 && <div style={{ flex: todo, backgroundColor: "#CCCCCC" }} />}
         </div>
         {/* Status chips */}
-        <div style={{ display: "flex", gap: "8px", marginTop: "10px", flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: "6px", marginTop: "10px", flexWrap: "wrap" }}>
           {[
-            { label: "DONE", count: done, bg: "#00CC44", color: "#000" },
-            { label: "PROGRESS", count: inProgress, bg: "#0055FF", color: "#fff" },
-            { label: "TESTING", count: testing, bg: "#9D00FF", color: "#fff" },
-            { label: "BLOCKED", count: blocked, bg: "#FF0033", color: "#fff" },
-            { label: "TODO", count: todo, bg: "#CCCCCC", color: "#000" },
-          ].map((chip) => (
-            <div key={chip.label} style={{ border: "2px solid #000", backgroundColor: chip.bg, color: chip.color, padding: "2px 10px", fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: "11px", display: "flex", gap: "6px", alignItems: "center" }}>
-              <span>{chip.label}</span>
-              <span style={{ backgroundColor: chip.color, color: chip.bg, padding: "0 4px", border: "1px solid #000" }}>{chip.count}</span>
-            </div>
-          ))}
+            { label: "DONE", count: done, bg: "#00CC44", color: "#000", icon: CheckCircle2 },
+            { label: "PROGRESS", count: inProgress, bg: "#0055FF", color: "#fff", icon: Activity },
+            { label: "TESTING", count: testing, bg: "#9D00FF", color: "#fff", icon: FlaskConical },
+            { label: "BLOCKED", count: blocked, bg: "#FF0033", color: "#fff", icon: AlertOctagon },
+            { label: "TODO", count: todo, bg: "#CCCCCC", color: "#000", icon: Clock },
+          ].map((chip) => {
+            const ChipIcon = chip.icon;
+            return (
+              <div key={chip.label} style={{ border: "2px solid #000", backgroundColor: chip.bg, color: chip.color, padding: "2px 8px", fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: "10px", display: "flex", gap: "4px", alignItems: "center" }}>
+                <ChipIcon size={11} strokeWidth={2.6} className="shrink-0" />
+                <span>{chip.label}</span>
+                <span style={{ backgroundColor: chip.color, color: chip.bg, padding: "0 3px", border: "1px solid #000" }}>{chip.count}</span>
+              </div>
+            );
+          })}
         </div>
       </div>
 
       {/* Live Status Bar */}
-      <div style={{ border: "3px solid #000", boxShadow: "4px 4px 0 #000", backgroundColor: "#F5F0E8", padding: "16px" }}>
-        <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: "13px", letterSpacing: "0.05em", marginBottom: "12px" }}>LIVE STATUS</div>
+      <div style={{ border: "3px solid #000", boxShadow: "4px 4px 0 #000", backgroundColor: "#F5F0E8", padding: "14px" }}>
+        <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: "12px", letterSpacing: "0.05em", marginBottom: "10px" }}>LIVE STATUS</div>
         <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
           {["Musab", "Yusha"].map((member) => {
             const activeEntry = state.activeWorkers.find((w) => w.user === member);
             const activeTask = activeEntry ? tasks.find((t) => t.id === activeEntry.taskId) : null;
             return (
-              <div key={member} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "8px 12px", border: "2px solid #000", backgroundColor: activeTask ? "#fffdf5" : "#F5F0E8" }}>
-                <span
-                  className={activeTask ? "pulse-dot" : ""}
-                  style={{
-                    width: "10px",
-                    height: "10px",
-                    borderRadius: "50%",
-                    backgroundColor: activeTask ? "#00CC44" : "#CCCCCC",
-                    flexShrink: 0,
-                  }}
-                />
-                <strong style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: "12px", flexShrink: 0 }}>{member}</strong>
+              <div
+                key={member}
+                className="flex flex-col sm:flex-row sm:items-center gap-2 p-2.5 sm:p-3 border-2 border-black"
+                style={{ backgroundColor: activeTask ? "#fffdf5" : "#F5F0E8" }}
+              >
+                <div className="flex items-center gap-2">
+                  <span
+                    className={activeTask ? "pulse-dot" : ""}
+                    style={{
+                      width: "10px",
+                      height: "10px",
+                      borderRadius: "50%",
+                      backgroundColor: activeTask ? "#00CC44" : "#CCCCCC",
+                      flexShrink: 0,
+                    }}
+                  />
+                  <strong style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: "12px", flexShrink: 0 }}>{member}</strong>
+                  {activeTask && (
+                    <span style={{ fontSize: "11px", color: "#666" }}>is on:</span>
+                  )}
+                </div>
                 {activeTask ? (
-                  <>
-                    <span style={{ fontSize: "12px", color: "#666" }}>is on →</span>
-                    <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600, fontSize: "12px", flex: 1 }}>{activeTask.title}</span>
-                    <span style={{ border: "2px solid #000", backgroundColor: "#fff", padding: "1px 8px", fontSize: "10px", fontWeight: 600 }}>{activeTask.category}</span>
-                    <span style={{ fontSize: "11px", color: "#666" }}>{timeElapsed(activeEntry!.startTime)}</span>
-                  </>
+                  <div className="flex items-center gap-2 flex-wrap flex-1 pl-4 sm:pl-0">
+                    <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600, fontSize: "12px", flex: 1, minWidth: "120px" }}>{activeTask.title}</span>
+                    <span style={{ border: "2px solid #000", backgroundColor: "#fff", padding: "1px 6px", fontSize: "10px", fontWeight: 600 }}>{activeTask.category}</span>
+                    <span style={{ fontSize: "10px", color: "#666" }}>{timeElapsed(activeEntry!.startTime)}</span>
+                  </div>
                 ) : (
-                  <span style={{ fontSize: "12px", color: "#999" }}>no active task right now</span>
+                  <span className="text-xs text-gray-500 pl-4 sm:pl-0">no active task right now</span>
                 )}
               </div>
             );
@@ -151,8 +192,8 @@ export default function DashboardPage() {
 
       {/* Team Progress */}
       <div>
-        <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: "14px", letterSpacing: "0.05em", marginBottom: "12px" }}>TEAM PROGRESS</div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "16px" }}>
+        <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: "13px", letterSpacing: "0.05em", marginBottom: "10px" }}>TEAM PROGRESS</div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
           {MEMBERS.map((member) => {
             const memberTasks = tasks.filter((t) => t.owner === member);
             const mOpen = memberTasks.filter((t) => t.status !== "done").length;
@@ -165,20 +206,20 @@ export default function DashboardPage() {
             const roles: Record<string, string> = { Musab: "Full Stack Dev", Yusha: "Frontend Lead", Shared: "Team" };
 
             return (
-              <div key={member} style={{ border: "3px solid #000", boxShadow: "4px 4px 0 #000", backgroundColor: "#F5F0E8", padding: "14px" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "12px" }}>
-                  <div style={{ ...getOwnerStyle(member as any), width: "36px", height: "36px", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: "16px", border: "3px solid #000" }}>
+              <div key={member} style={{ border: "3px solid #000", boxShadow: "4px 4px 0 #000", backgroundColor: "#F5F0E8", padding: "12px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "10px" }}>
+                  <div style={{ ...getOwnerStyle(member as any), width: "32px", height: "32px", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: "14px", border: "3px solid #000" }}>
                     {member[0]}
                   </div>
                   <div>
-                    <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: "13px" }}>{member.toUpperCase()}</div>
-                    <div style={{ fontSize: "11px", color: "#666" }}>{roles[member]}</div>
+                    <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: "12px" }}>{member.toUpperCase()}</div>
+                    <div style={{ fontSize: "10px", color: "#666" }}>{roles[member]}</div>
                   </div>
                   <div style={{ marginLeft: "auto", width: "10px", height: "10px", borderRadius: "50%", backgroundColor: activeTask ? "#00CC44" : "#CCCCCC", border: "2px solid #000" }} />
                 </div>
                 {activeTask ? (
-                  <div style={{ border: "2px solid #000", backgroundColor: "#00CC4422", padding: "4px 8px", fontSize: "11px", fontWeight: 600, marginBottom: "10px", display: "flex", gap: "6px" }}>
-                    <span>🔥</span>
+                  <div style={{ border: "2px solid #000", backgroundColor: "#00CC4422", padding: "4px 8px", fontSize: "11px", fontWeight: 600, marginBottom: "10px", display: "flex", alignItems: "center", gap: "6px" }}>
+                    <Flame size={13} strokeWidth={2.6} className="text-[#FF4400] shrink-0" />
                     <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{activeTask.title}</span>
                   </div>
                 ) : (
@@ -192,17 +233,17 @@ export default function DashboardPage() {
                     { label: "BLOCK", val: mBlocked, color: "#FF0033" },
                   ].map((s) => (
                     <div key={s.label} style={{ textAlign: "center", border: "2px solid #000", padding: "4px 2px" }}>
-                      <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: "14px", color: s.color }}>{s.val}</div>
+                      <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: "13px", color: s.color }}>{s.val}</div>
                       <div style={{ fontSize: "8px", fontWeight: 600, letterSpacing: "0.05em", color: "#666" }}>{s.label}</div>
                     </div>
                   ))}
                 </div>
                 <div>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px", fontSize: "11px", fontWeight: 600 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px", fontSize: "10px", fontWeight: 600 }}>
                     <span>PROGRESS</span>
                     <span>{mPct}%</span>
                   </div>
-                  <div style={{ height: "10px", border: "2px solid #000", backgroundColor: "#CCCCCC" }}>
+                  <div style={{ height: "8px", border: "2px solid #000", backgroundColor: "#CCCCCC" }}>
                     <div style={{ height: "100%", width: `${mPct}%`, backgroundColor: "#00CC44" }} />
                   </div>
                 </div>
@@ -214,8 +255,8 @@ export default function DashboardPage() {
 
       {/* Category Breakdown */}
       <div>
-        <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: "14px", letterSpacing: "0.05em", marginBottom: "12px" }}>CATEGORY BREAKDOWN</div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "12px" }}>
+        <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: "13px", letterSpacing: "0.05em", marginBottom: "10px" }}>CATEGORY BREAKDOWN</div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2.5 sm:gap-3">
           {CATEGORIES.map((cat) => {
             const catTasks = tasks.filter((t) => t.category === cat);
             if (catTasks.length === 0) return null;
@@ -223,12 +264,15 @@ export default function DashboardPage() {
             const pct = catTasks.length > 0 ? Math.round((catDone / catTasks.length) * 100) : 0;
             const color = CAT_COLORS[cat] || "#888";
             return (
-              <div key={cat} style={{ border: "3px solid #000", boxShadow: "3px 3px 0 #000", backgroundColor: "#F5F0E8", padding: "12px" }}>
-                <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: "12px", marginBottom: "8px" }}>{cat.toUpperCase()}</div>
-                <div style={{ height: "8px", border: "2px solid #000", backgroundColor: "#CCCCCC", marginBottom: "6px" }}>
+              <div key={cat} style={{ border: "2px solid #000", boxShadow: "2px 2px 0 #000", backgroundColor: "#F5F0E8", padding: "10px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "6px", fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: "11px", marginBottom: "6px" }}>
+                  {getCategoryIcon(cat, 13)}
+                  <span>{cat.toUpperCase()}</span>
+                </div>
+                <div style={{ height: "6px", border: "2px solid #000", backgroundColor: "#CCCCCC", marginBottom: "4px" }}>
                   <div style={{ height: "100%", width: `${pct}%`, backgroundColor: color }} />
                 </div>
-                <div style={{ fontSize: "11px", color: "#666" }}>{catDone} done / {catTasks.length} total</div>
+                <div style={{ fontSize: "10px", color: "#666" }}>{catDone} / {catTasks.length} done</div>
               </div>
             );
           })}
@@ -237,21 +281,24 @@ export default function DashboardPage() {
 
       {/* Priority Breakdown */}
       <div>
-        <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: "14px", letterSpacing: "0.05em", marginBottom: "12px" }}>PRIORITY BREAKDOWN</div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "16px" }}>
+        <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: "13px", letterSpacing: "0.05em", marginBottom: "10px" }}>PRIORITY BREAKDOWN</div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-4">
           {[
             { priority: "high", label: "HIGH", color: "#FF0033", textColor: "#fff" },
             { priority: "medium", label: "MEDIUM", color: "#FF8800", textColor: "#000" },
             { priority: "low", label: "LOW", color: "#AAAAAA", textColor: "#000" },
-          ].map(({ priority, label, color, textColor }) => {
+          ].map(({ priority, label, color }) => {
             const pTasks = tasks.filter((t) => t.priority === priority);
             const open = pTasks.filter((t) => t.status !== "done").length;
             const pDone = pTasks.filter((t) => t.status === "done").length;
             return (
-              <div key={priority} style={{ border: "3px solid #000", boxShadow: "4px 4px 0 #000", backgroundColor: "#F5F0E8", borderLeft: `8px solid ${color}`, padding: "16px" }}>
-                <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: "12px", color: "#666", marginBottom: "4px" }}>{label} PRIORITY</div>
-                <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: "36px", color: color }}>{open}</div>
-                <div style={{ fontSize: "11px", color: "#888" }}>open · {pDone} done</div>
+              <div key={priority} style={{ border: "3px solid #000", boxShadow: "4px 4px 0 #000", backgroundColor: "#F5F0E8", borderLeft: `8px solid ${color}`, padding: "12px 14px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "5px", fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: "11px", color: "#666", marginBottom: "2px" }}>
+                  {getPriorityIconComponent(priority as any, 13)}
+                  <span>{label} PRIORITY</span>
+                </div>
+                <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: "32px", color: color, lineHeight: 1.1 }}>{open}</div>
+                <div style={{ fontSize: "10px", color: "#888" }}>open · {pDone} done</div>
               </div>
             );
           })}
@@ -259,11 +306,12 @@ export default function DashboardPage() {
       </div>
 
       {/* Activity Grid */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
         {/* Recent Completions */}
-        <div style={{ border: "3px solid #000", boxShadow: "4px 4px 0 #000", backgroundColor: "#F5F0E8", padding: "16px" }}>
-          <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: "13px", letterSpacing: "0.05em", marginBottom: "12px", borderBottom: "2px solid #000", paddingBottom: "8px" }}>
-            RECENT COMPLETIONS
+        <div style={{ border: "3px solid #000", boxShadow: "4px 4px 0 #000", backgroundColor: "#F5F0E8", padding: "14px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "6px", fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: "12px", letterSpacing: "0.05em", marginBottom: "10px", borderBottom: "2px solid #000", paddingBottom: "6px" }}>
+            <CheckCircle2 size={14} strokeWidth={2.6} className="text-[#00CC44]" />
+            <span>RECENT COMPLETIONS</span>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
             {tasks.filter((t) => t.status === "done").sort((a, b) => {
@@ -272,7 +320,7 @@ export default function DashboardPage() {
               return bTime - aTime;
             }).slice(0, 5).map((t) => (
               <div key={t.id} style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <div style={{ width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "#00CC44", border: "1px solid #000", flexShrink: 0 }} />
+                <Check size={12} strokeWidth={3} className="text-[#00CC44] shrink-0" />
                 <span style={{ flex: 1, fontSize: "12px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.title}</span>
                 <span style={{ ...getOwnerStyle(t.owner), padding: "1px 6px", fontSize: "9px", fontWeight: 700, fontFamily: "'Space Grotesk', sans-serif", flexShrink: 0 }}>
                   {t.owner.toUpperCase()}
@@ -286,14 +334,15 @@ export default function DashboardPage() {
         </div>
 
         {/* Needs Attention */}
-        <div style={{ border: "3px solid #000", boxShadow: "4px 4px 0 #000", backgroundColor: "#F5F0E8", padding: "16px" }}>
-          <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: "13px", letterSpacing: "0.05em", marginBottom: "12px", borderBottom: "2px solid #000", paddingBottom: "8px" }}>
-            NEEDS ATTENTION
+        <div style={{ border: "3px solid #000", boxShadow: "4px 4px 0 #000", backgroundColor: "#F5F0E8", padding: "14px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "6px", fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: "12px", letterSpacing: "0.05em", marginBottom: "10px", borderBottom: "2px solid #000", paddingBottom: "6px" }}>
+            <AlertTriangle size={14} strokeWidth={2.6} className="text-[#FF0033]" />
+            <span>NEEDS ATTENTION</span>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
             {tasks.filter((t) => t.status === "blocked" || t.priority === "high").filter((t) => t.status !== "done").slice(0, 5).map((t) => (
               <div key={t.id} style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <div style={{ width: "8px", height: "8px", borderRadius: "50%", backgroundColor: t.status === "blocked" ? "#FF0033" : "#FF8800", border: "1px solid #000", flexShrink: 0 }} />
+                <AlertOctagon size={12} strokeWidth={3} className={t.status === "blocked" ? "text-[#FF0033] shrink-0" : "text-[#FF8800] shrink-0"} />
                 <span style={{ flex: 1, fontSize: "12px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.title}</span>
                 <span style={{ ...getOwnerStyle(t.owner), padding: "1px 6px", fontSize: "9px", fontWeight: 700, fontFamily: "'Space Grotesk', sans-serif", flexShrink: 0 }}>
                   {t.owner.toUpperCase()}
@@ -310,12 +359,19 @@ export default function DashboardPage() {
   );
 }
 
-function StatCard({ label, value, sub, accentColor, valueColor }: { label: string; value: number; sub: string; accentColor: string; valueColor?: string }) {
+function StatCard({ label, value, sub, accentColor, valueColor, icon: Icon }: { label: string; value: number; sub: string; accentColor: string; valueColor?: string; icon?: React.ElementType }) {
   return (
-    <div style={{ border: "3px solid #000", boxShadow: "4px 4px 0 #000", backgroundColor: "#F5F0E8", padding: "16px", position: "relative", overflow: "hidden" }}>
-      <div style={{ fontSize: "10px", fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, letterSpacing: "0.1em", color: "#666", marginBottom: "8px" }}>{label}</div>
-      <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: "42px", color: valueColor ?? "#000", lineHeight: 1 }}>{value}</div>
-      <div style={{ fontSize: "11px", color: "#888", marginTop: "4px" }}>{sub}</div>
+    <div style={{ border: "3px solid #000", boxShadow: "3px 3px 0 #000", backgroundColor: "#F5F0E8", padding: "12px", position: "relative", overflow: "hidden" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "4px" }}>
+        <div style={{ fontSize: "9px", fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, letterSpacing: "0.08em", color: "#666" }}>{label}</div>
+        {Icon && (
+          <div style={{ border: "1px solid #000", backgroundColor: accentColor, color: accentColor === "#0055FF" || accentColor === "#FF0033" ? "#fff" : "#000", padding: "2px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <Icon size={12} strokeWidth={2.6} />
+          </div>
+        )}
+      </div>
+      <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: "32px", color: valueColor ?? "#000", lineHeight: 1 }}>{value}</div>
+      <div style={{ fontSize: "10px", color: "#888", marginTop: "4px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{sub}</div>
       <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "4px", backgroundColor: accentColor }} />
     </div>
   );

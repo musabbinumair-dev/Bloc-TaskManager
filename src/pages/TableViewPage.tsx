@@ -2,6 +2,16 @@ import { useState } from "react";
 import { useTaskContext } from "@/lib/task-context";
 import { Task } from "@/lib/task-context";
 import { getOwnerStyle, getStatusStyle, getStatusLabel, getPriorityStyle, isOverdue, isDueToday, formatDueDate, timeElapsed } from "@/lib/helpers";
+import {
+  Table,
+  ChevronUp,
+  ChevronDown,
+  ChevronsUpDown,
+  Calendar,
+  getCategoryIcon,
+  getPriorityIconComponent,
+  getStatusIconComponent,
+} from "@/lib/icons";
 
 type SortCol = "title" | "owner" | "category" | "priority" | "status" | "dueDate" | "activeWorker" | null;
 type SortDir = "asc" | "desc";
@@ -49,8 +59,12 @@ export default function TableViewPage() {
   const statuses: Task["status"][] = ["blocked", "progress", "testing", "todo", "done"];
 
   function SortIcon({ col }: { col: SortCol }) {
-    if (sortCol !== col) return <span style={{ color: "#ccc" }}>↕</span>;
-    return <span>{sortDir === "asc" ? "↑" : "↓"}</span>;
+    if (sortCol !== col) return <ChevronsUpDown size={11} strokeWidth={2.4} className="text-gray-400 inline ml-1 shrink-0" />;
+    return sortDir === "asc" ? (
+      <ChevronUp size={11} strokeWidth={3} className="text-[#FFE600] inline ml-1 shrink-0" />
+    ) : (
+      <ChevronDown size={11} strokeWidth={3} className="text-[#FFE600] inline ml-1 shrink-0" />
+    );
   }
 
   const thStyle: React.CSSProperties = {
@@ -78,10 +92,10 @@ export default function TableViewPage() {
   function renderRow(task: Task) {
     const activeWorker = state.activeWorkers.find((w) => w.taskId === task.id);
     const dueStyle: React.CSSProperties = isOverdue(task.dueDate)
-      ? { backgroundColor: "#FF0033", color: "#fff", border: "2px solid #000", padding: "1px 6px", fontWeight: 700, fontSize: "10px" }
+      ? { backgroundColor: "#FF0033", color: "#fff", border: "2px solid #000", padding: "1px 6px", fontWeight: 700, fontSize: "10px", display: "inline-flex", alignItems: "center", gap: "3px" }
       : isDueToday(task.dueDate)
-      ? { backgroundColor: "#FF8800", color: "#000", border: "2px solid #000", padding: "1px 6px", fontWeight: 700, fontSize: "10px" }
-      : { padding: "1px 6px", fontSize: "11px" };
+      ? { backgroundColor: "#FF8800", color: "#000", border: "2px solid #000", padding: "1px 6px", fontWeight: 700, fontSize: "10px", display: "inline-flex", alignItems: "center", gap: "3px" }
+      : { padding: "1px 6px", fontSize: "11px", display: "inline-flex", alignItems: "center", gap: "3px" };
 
     return (
       <tr key={task.id} data-testid={`row-table-${task.id}`} style={{ borderBottom: "2px solid #000", backgroundColor: "#F5F0E8" }}>
@@ -94,21 +108,27 @@ export default function TableViewPage() {
           </span>
         </td>
         <td style={tdStyle}>
-          <span style={{ border: "2px solid #000", backgroundColor: "#fff", padding: "2px 8px", fontSize: "10px", fontWeight: 600 }}>{task.category}</span>
+          <span style={{ border: "2px solid #000", backgroundColor: "#fff", padding: "2px 8px", fontSize: "10px", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: "4px" }}>
+            {getCategoryIcon(task.category, 11)}
+            {task.category}
+          </span>
         </td>
         <td style={tdStyle}>
-          <span style={{ ...getPriorityStyle(task.priority), padding: "2px 8px", fontSize: "10px", fontWeight: 700, fontFamily: "'Space Grotesk', sans-serif" }}>
+          <span style={{ ...getPriorityStyle(task.priority), padding: "2px 8px", fontSize: "10px", fontWeight: 700, fontFamily: "'Space Grotesk', sans-serif", display: "inline-flex", alignItems: "center", gap: "4px" }}>
+            {getPriorityIconComponent(task.priority, 11)}
             {task.priority.toUpperCase()}
           </span>
         </td>
         <td style={tdStyle}>
-          <span style={{ ...getStatusStyle(task.status), padding: "2px 8px", fontSize: "10px", fontWeight: 700, fontFamily: "'Space Grotesk', sans-serif" }}>
+          <span style={{ ...getStatusStyle(task.status), padding: "2px 8px", fontSize: "10px", fontWeight: 700, fontFamily: "'Space Grotesk', sans-serif", display: "inline-flex", alignItems: "center", gap: "4px" }}>
+            {getStatusIconComponent(task.status, 11)}
             {getStatusLabel(task.status)}
           </span>
         </td>
         <td style={tdStyle}>
           {task.dueDate ? (
             <span style={dueStyle} className={isOverdue(task.dueDate) ? "blink-red" : ""}>
+              <Calendar size={10} strokeWidth={2.4} />
               {formatDueDate(task.dueDate)}
             </span>
           ) : (
@@ -134,12 +154,18 @@ export default function TableViewPage() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
-      <div style={{ padding: "14px 20px", borderBottom: "3px solid #000", backgroundColor: "#000", color: "#FFE600", display: "flex", alignItems: "center", gap: "12px", flexShrink: 0 }}>
-        <span style={{ fontSize: "20px" }}>⊞</span>
-        <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: "18px", letterSpacing: "0.05em" }}>TABLE VIEW</div>
+      <div className="px-3.5 py-2.5 sm:px-5 sm:py-3.5 border-b-[3px] border-black bg-black text-[#FFE600] flex items-center gap-3 shrink-0">
+        <Table size={20} strokeWidth={2.6} className="text-[#FFE600] shrink-0" />
+        <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: "16px", letterSpacing: "0.05em" }}>TABLE VIEW</div>
       </div>
 
-      <div style={{ flex: 1, overflowY: "auto", overflowX: "auto" }}>
+      {/* Mobile Swipe Hint */}
+      <div className="md:hidden px-3 py-1.5 bg-[#FFE600] text-black text-[10px] font-heading font-bold border-b-2 border-black flex items-center justify-between shrink-0">
+        <span>↔ SWIPE HORIZONTALLY FOR ALL COLUMNS</span>
+        <span>{sorted.length} TASKS</span>
+      </div>
+
+      <div className="flex-1 overflow-y-auto overflow-x-auto" style={{ WebkitOverflowScrolling: "touch" }}>
         <table style={{ width: "100%", borderCollapse: "collapse", border: "3px solid #000", minWidth: "800px" }}>
           <thead style={{ position: "sticky", top: 0, zIndex: 10 }}>
             <tr>

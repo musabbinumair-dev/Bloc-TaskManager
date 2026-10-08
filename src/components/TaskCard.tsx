@@ -17,6 +17,16 @@ import {
 } from "@/lib/helpers";
 import ConfirmPopup from "./ConfirmPopup";
 import EditTaskModal from "./EditTaskModal";
+import {
+  Trash2,
+  Calendar,
+  Flame,
+  MessageSquare,
+  Pencil,
+  getCategoryIcon,
+  getPriorityIconComponent,
+  getStatusIconComponent,
+} from "@/lib/icons";
 
 const STATUSES: Array<Task["status"]> = ["todo", "progress", "testing", "blocked", "done"];
 const PRIORITIES: Array<Task["priority"]> = ["high", "medium", "low"];
@@ -127,8 +137,8 @@ export default function TaskCard({ task, isUnseen = false }: TaskCardProps) {
       <div style={{ padding: "12px", paddingLeft: "18px", display: "flex", flexDirection: "column", gap: "10px", flex: 1 }}>
         {/* Top row: priority + title + delete */}
         <div style={{ display: "flex", alignItems: "flex-start", gap: "8px" }}>
-          <span style={{ fontSize: "10px", fontWeight: 700, color: getPriorityStyle(task.priority).backgroundColor as string, flexShrink: 0 }}>
-            {getPriorityIcon(task.priority)}
+          <span style={{ color: getPriorityStyle(task.priority).backgroundColor as string, flexShrink: 0, display: "flex", alignItems: "center", marginTop: "2px" }}>
+            {getPriorityIconComponent(task.priority, 14)}
           </span>
           <div
             data-testid={`text-task-title-${task.id}`}
@@ -150,14 +160,12 @@ export default function TaskCard({ task, isUnseen = false }: TaskCardProps) {
                 alignItems: "center",
                 justifyContent: "center",
                 cursor: "pointer",
-                fontSize: "12px",
-                fontWeight: 700,
                 flexShrink: 0,
                 padding: 0,
               }}
               title="Delete task"
             >
-              ✕
+              <Trash2 size={12} strokeWidth={2.6} />
             </button>
           )}
         </div>
@@ -170,20 +178,24 @@ export default function TaskCard({ task, isUnseen = false }: TaskCardProps) {
           <span style={{ ...getOwnerStyle(task.owner), padding: "2px 8px", fontSize: "10px", fontWeight: 700, fontFamily: "'Space Grotesk', sans-serif" }}>
             {task.owner.toUpperCase()}
           </span>
-          <span style={{ border: "2px solid #000", backgroundColor: "#fff", padding: "2px 8px", fontSize: "10px", fontWeight: 600 }}>
+          <span style={{ border: "2px solid #000", backgroundColor: "#fff", padding: "2px 8px", fontSize: "10px", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: "4px" }}>
+            {getCategoryIcon(task.category, 11)}
             {task.category}
           </span>
-          <span style={{ ...getPriorityStyle(task.priority), padding: "2px 8px", fontSize: "10px", fontWeight: 700, fontFamily: "'Space Grotesk', sans-serif" }}>
+          <span style={{ ...getPriorityStyle(task.priority), padding: "2px 8px", fontSize: "10px", fontWeight: 700, fontFamily: "'Space Grotesk', sans-serif", display: "inline-flex", alignItems: "center", gap: "4px" }}>
+            {getPriorityIconComponent(task.priority, 11)}
             {task.priority.toUpperCase()}
           </span>
-          <span style={{ ...getStatusStyle(task.status), padding: "2px 8px", fontSize: "10px", fontWeight: 700, fontFamily: "'Space Grotesk', sans-serif" }}>
+          <span style={{ ...getStatusStyle(task.status), padding: "2px 8px", fontSize: "10px", fontWeight: 700, fontFamily: "'Space Grotesk', sans-serif", display: "inline-flex", alignItems: "center", gap: "4px" }}>
+            {getStatusIconComponent(task.status, 11)}
             {getStatusLabel(task.status)}
           </span>
           {task.dueDate && (
             <span
               className={isOverdue(task.dueDate) ? "blink-red" : ""}
-              style={{ ...dueStyle, padding: "2px 8px", fontSize: "10px", fontWeight: 600 }}
+              style={{ ...dueStyle, padding: "2px 8px", fontSize: "10px", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: "4px" }}
             >
+              <Calendar size={11} strokeWidth={2.4} />
               DUE {formatDueDate(task.dueDate)}
             </span>
           )}
@@ -240,9 +252,14 @@ export default function TaskCard({ task, isUnseen = false }: TaskCardProps) {
               fontFamily: "'Space Grotesk', sans-serif",
               fontWeight: 600,
               fontSize: "12px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "6px",
             }}
           >
-            🎯 I'M WORKING ON THIS
+            <Flame size={14} strokeWidth={2.6} className="text-[#FF4400]" />
+            I'M WORKING ON THIS
           </button>
         ) : null}
 
@@ -280,22 +297,27 @@ export default function TaskCard({ task, isUnseen = false }: TaskCardProps) {
 
         <div style={{ marginTop: "auto", display: "flex", flexDirection: "column", gap: "10px" }}>
           {/* Card Actions */}
-          <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
+          <div className="flex gap-2 items-center flex-wrap">
             <div
               data-testid={`static-status-${task.id}`}
               style={{
                 border: "2px solid #000",
                 boxShadow: "2px 2px 0 #000",
-                padding: "6px 12px",
+                padding: "5px 8px",
                 fontFamily: "'Space Grotesk', sans-serif",
                 fontWeight: 600,
                 fontSize: "11px",
                 backgroundColor: "#F5F0E8",
                 color: "#000",
-                minWidth: "100px",
                 textAlign: "center",
+                flex: "1 1 80px",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "4px",
               }}
             >
+              {getStatusIconComponent(task.status, 11)}
               {getStatusLabel(task.status)}
             </div>
             <div
@@ -303,25 +325,30 @@ export default function TaskCard({ task, isUnseen = false }: TaskCardProps) {
               style={{
                 border: "2px solid #000",
                 boxShadow: "2px 2px 0 #000",
-                padding: "6px 12px",
+                padding: "5px 8px",
                 fontFamily: "'Space Grotesk', sans-serif",
                 fontWeight: 700,
                 fontSize: "11px",
                 backgroundColor: getPriorityStyle(task.priority).backgroundColor as string,
                 color: getPriorityStyle(task.priority).color as string,
-                minWidth: "100px",
                 textAlign: "center",
+                flex: "1 1 80px",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "4px",
               }}
             >
-              {getPriorityIcon(task.priority)} {task.priority.toUpperCase()}
+              {getPriorityIconComponent(task.priority, 11)}
+              {task.priority.toUpperCase()}
             </div>
-            <div style={{ display: "flex", gap: "4px" }}>
+            <div className="flex gap-1 flex-wrap">
               {OWNERS.map((owner) => (
                 <div
                   data-testid={`static-assign-${owner}-${task.id}`}
                   key={owner}
                   style={{
-                    padding: "4px 8px",
+                    padding: "4px 7px",
                     border: "2px solid #000",
                     fontFamily: "'Space Grotesk', sans-serif",
                     fontWeight: 700,
@@ -351,8 +378,12 @@ export default function TaskCard({ task, isUnseen = false }: TaskCardProps) {
               fontWeight: 700,
               fontSize: "10px",
               cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: "4px",
             }}
           >
+            <MessageSquare size={11} strokeWidth={2.4} />
             COMMENTS ({task.comments.length})
           </button>
           {isMyTask && (
@@ -368,8 +399,12 @@ export default function TaskCard({ task, isUnseen = false }: TaskCardProps) {
                 fontWeight: 700,
                 fontSize: "10px",
                 cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: "4px",
               }}
             >
+              <Pencil size={11} strokeWidth={2.4} />
               EDIT
             </button>
           )}

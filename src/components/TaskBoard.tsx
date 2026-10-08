@@ -3,6 +3,15 @@ import { useTaskContext } from "@/lib/task-context";
 import TaskCard from "./TaskCard";
 import DoneRow from "./DoneRow";
 import { getStatusAccentColor } from "@/lib/helpers";
+import {
+  Bell,
+  Flame,
+  AlertOctagon,
+  Activity,
+  FlaskConical,
+  Clock,
+  CheckSquare,
+} from "@/lib/icons";
 
 const ORDER: Task["status"][] = ["blocked", "progress", "testing", "todo", "done"];
 const LABELS: Record<Task["status"], string> = {
@@ -18,6 +27,14 @@ const BADGE_COLORS: Record<Task["status"], string> = {
   testing: "#9D00FF",
   todo: "#AAAAAA",
   done: "#00CC44",
+};
+
+const STATUS_ICONS: Record<Task["status"], React.ElementType> = {
+  blocked: AlertOctagon,
+  progress: Activity,
+  testing: FlaskConical,
+  todo: Clock,
+  done: CheckSquare,
 };
 
 interface TaskBoardProps {
@@ -81,22 +98,24 @@ export default function TaskBoard({ tasks, showNewAssignments = false, showCurre
       {/* New Assignments Banner */}
       {newlyAssigned.length > 0 && (
         <Section
-          label={`🔔 NEW TASKS ASSIGNED TO YOU (${newlyAssigned.length})`}
+          label={`NEW TASKS ASSIGNED TO YOU`}
           color="#FF00AA"
           tasks={newlyAssigned}
           isUnseen
           isDone={false}
+          icon={Bell}
         />
       )}
 
       {/* Currently Active Banner */}
       {currentlyActive.length > 0 && (
         <Section
-          label={`🔥 YOU'RE CURRENTLY ON THIS`}
+          label={`YOU'RE CURRENTLY ON THIS`}
           color="#00CC44"
           tasks={currentlyActive}
           isUnseen={false}
           isDone={false}
+          icon={Flame}
         />
       )}
 
@@ -110,6 +129,7 @@ export default function TaskBoard({ tasks, showNewAssignments = false, showCurre
             tasks={grouped[status]}
             isUnseen={false}
             isDone={false}
+            icon={STATUS_ICONS[status]}
           />
         ) : null
       )}
@@ -122,6 +142,7 @@ export default function TaskBoard({ tasks, showNewAssignments = false, showCurre
           tasks={grouped.done}
           isUnseen={false}
           isDone
+          icon={CheckSquare}
         />
       )}
     </div>
@@ -134,12 +155,14 @@ function Section({
   tasks,
   isUnseen,
   isDone,
+  icon: Icon,
 }: {
   label: string;
   color: string;
   tasks: Task[];
   isUnseen: boolean;
   isDone: boolean;
+  icon?: React.ElementType;
 }) {
   return (
     <div>
@@ -154,9 +177,13 @@ function Section({
             fontSize: "12px",
             letterSpacing: "0.08em",
             border: "2px solid #000",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "6px",
           }}
         >
-          {label}
+          {Icon && <Icon size={13} strokeWidth={2.6} className="text-[#FFE600] shrink-0" />}
+          <span>{label}</span>
         </div>
         <div
           style={{
@@ -180,13 +207,7 @@ function Section({
           ))}
         </div>
       ) : (
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
-            gap: "16px",
-          }}
-        >
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
           {tasks.map((t) => (
             <TaskCard key={t.id} task={t} isUnseen={isUnseen} />
           ))}

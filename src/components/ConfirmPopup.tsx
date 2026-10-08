@@ -1,4 +1,5 @@
 import React from "react";
+import { AlertTriangle, Trash2, X } from "@/lib/icons";
 
 interface ConfirmPopupProps {
   open: boolean;
@@ -44,8 +45,8 @@ export default function ConfirmPopup({
           boxShadow: "8px 8px 0 #000",
           backgroundColor: "#F5F0E8",
           padding: "0",
-          minWidth: "340px",
-          maxWidth: "440px",
+          width: "calc(100vw - 32px)",
+          maxWidth: "420px",
           fontFamily: "'Space Grotesk', sans-serif",
         }}
       >
@@ -64,7 +65,7 @@ export default function ConfirmPopup({
             gap: "8px",
           }}
         >
-          <span style={{ fontSize: "18px" }}>⚠</span>
+          <AlertTriangle size={18} strokeWidth={2.6} className="text-white shrink-0" />
           {title}
         </div>
 
@@ -86,7 +87,7 @@ export default function ConfirmPopup({
           <button
             onClick={onCancel}
             style={{
-              padding: "8px 20px",
+              padding: "8px 16px",
               border: "2px solid #000",
               backgroundColor: "#F5F0E8",
               color: "#000",
@@ -95,14 +96,18 @@ export default function ConfirmPopup({
               fontSize: "12px",
               cursor: "pointer",
               boxShadow: "3px 3px 0 #000",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "4px",
             }}
           >
+            <X size={12} strokeWidth={2.6} />
             {cancelLabel}
           </button>
           <button
             onClick={onConfirm}
             style={{
-              padding: "8px 20px",
+              padding: "8px 16px",
               border: "2px solid #000",
               backgroundColor: "#FF0033",
               color: "#fff",
@@ -111,8 +116,12 @@ export default function ConfirmPopup({
               fontSize: "12px",
               cursor: "pointer",
               boxShadow: "3px 3px 0 #000",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "4px",
             }}
           >
+            <Trash2 size={12} strokeWidth={2.6} />
             {confirmLabel}
           </button>
         </div>

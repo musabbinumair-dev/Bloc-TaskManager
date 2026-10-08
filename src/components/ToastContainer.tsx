@@ -1,4 +1,5 @@
 import { useState, useEffect, createContext, useContext, useCallback } from "react";
+import { CheckCircle2, AlertTriangle, Flame, X } from "@/lib/icons";
 
 interface Toast {
   id: string;
@@ -30,9 +31,11 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   return (
     <ToastContext.Provider value={{ showToast }}>
       {children}
-      <div style={{ position: "fixed", bottom: "24px", right: "24px", display: "flex", flexDirection: "column", gap: "8px", zIndex: 9999 }}>
+      <div className="fixed bottom-[74px] md:bottom-6 right-3 md:right-6 left-3 md:left-auto flex flex-col gap-2 z-[9999] pointer-events-none">
         {toasts.map((toast) => (
-          <ToastItem key={toast.id} toast={toast} onClose={() => setToasts((prev) => prev.filter((t) => t.id !== toast.id))} />
+          <div key={toast.id} className="pointer-events-auto">
+            <ToastItem toast={toast} onClose={() => setToasts((prev) => prev.filter((t) => t.id !== toast.id))} />
+          </div>
         ))}
       </div>
     </ToastContext.Provider>
@@ -41,36 +44,42 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
 
 function ToastItem({ toast, onClose }: { toast: Toast; onClose: () => void }) {
   const accentColor = toast.type === "success" ? "#00CC44" : toast.type === "error" ? "#FF0033" : "#0055FF";
+  const ToastIcon = toast.type === "success" ? CheckCircle2 : toast.type === "error" ? AlertTriangle : Flame;
 
   return (
     <div
-      className="toast-slide-in"
+      className="toast-slide-in w-full sm:w-auto"
       data-testid={`toast-${toast.id}`}
       style={{
         border: "3px solid #000",
         boxShadow: "4px 4px 0 #000",
         backgroundColor: "#F5F0E8",
-        minWidth: "280px",
+        minWidth: "240px",
         maxWidth: "380px",
         display: "flex",
         overflow: "hidden",
+        alignItems: "center",
       }}
     >
-      <div style={{ width: "5px", backgroundColor: accentColor, flexShrink: 0 }} />
-      <div style={{ padding: "12px 14px", flex: 1, fontFamily: "'Inter', sans-serif", fontSize: "13px" }}>{toast.message}</div>
+      <div style={{ width: "5px", alignSelf: "stretch", backgroundColor: accentColor, flexShrink: 0 }} />
+      <div style={{ padding: "10px 12px", display: "flex", alignItems: "center", gap: "8px", flex: 1 }}>
+        <ToastIcon size={16} strokeWidth={2.6} style={{ color: accentColor, flexShrink: 0 }} />
+        <span style={{ fontFamily: "'Inter', sans-serif", fontSize: "13px", fontWeight: 500, color: "#000" }}>{toast.message}</span>
+      </div>
       <button
         onClick={onClose}
         style={{
-          padding: "0 12px",
+          padding: "10px 12px",
           border: "none",
           borderLeft: "2px solid #000",
           backgroundColor: "transparent",
           cursor: "pointer",
-          fontWeight: 700,
-          fontSize: "14px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
         }}
       >
-        ✕
+        <X size={14} strokeWidth={2.6} />
       </button>
     </div>
   );

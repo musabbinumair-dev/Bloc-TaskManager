@@ -19,18 +19,13 @@ export default function LoginPage() {
 
   return (
     <div
+      className="min-h-screen w-full flex items-center justify-center p-4 overflow-y-auto"
       style={{
         position: "relative",
-        width: "100vw",
-        height: "100vh",
         background: "radial-gradient(rgba(0,0,0,0.15) 1.5px, transparent 1.5px)",
         backgroundColor: "#F5F0E8",
         backgroundSize: "24px 24px",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
         fontFamily: "'Inter', sans-serif",
-        overflow: "hidden",
       }}
     >
       {/* ── Background Stationery Elements ── */}
@@ -204,14 +199,13 @@ export default function LoginPage() {
 
       {/* Main Login Card */}
       <div
+        className="w-full max-w-[420px] p-6 sm:p-10 my-auto"
         style={{
           position: "relative",
           zIndex: 10,
           border: "3px solid #000",
-          boxShadow: "10px 10px 0 #000",
+          boxShadow: "8px 8px 0 #000",
           backgroundColor: "#F5F0E8",
-          padding: "48px 40px",
-          width: "420px",
           boxSizing: "border-box",
         }}
       >

@@ -1,0 +1,6 @@
+{
+  "name": "Bloc - Team Task Manager",
+  "description": "Brutalist team task management and coordination platform for tracking tasks, workflows, and deliverables.",
+  "permissions": [],
+  "capabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

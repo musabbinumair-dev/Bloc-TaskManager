@@ -3,6 +3,17 @@ import { createPortal } from "react-dom";
 import { Task, User } from "@/lib/task-context";
 import { useTaskContext } from "@/lib/task-context";
 import { getStatusLabel } from "@/lib/helpers";
+import {
+  Pencil,
+  X,
+  Calendar,
+  ChevronLeft,
+  ChevronRight,
+  getCategoryIcon,
+  getPriorityIconComponent,
+  getStatusIconComponent,
+  getOwnerIconComponent,
+} from "@/lib/icons";
 
 const DEFAULT_CATEGORIES = ["Core", "Backend", "Frontend", "Security", "Analytics", "Billing", "Notifications", "Display", "Bugfix", "DevOps"];
 const STATUSES: Array<Task["status"]> = ["todo", "progress", "testing", "blocked", "done"];
@@ -107,9 +118,13 @@ export default function EditTaskModal({ task, open, onClose }: EditTaskModalProp
     return (
       <div ref={calRef} style={{ position: "absolute", bottom: "calc(100% + 2px)", left: 0, zIndex: 200, border: "2px solid #000", boxShadow: "4px 4px 0 #000", backgroundColor: "#F5F0E8", padding: "8px", minWidth: "210px" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "6px" }}>
-          <button onClick={() => setCalMonth(new Date(year, month - 1, 1))} style={{ border: "2px solid #000", backgroundColor: "#F5F0E8", width: "24px", height: "24px", cursor: "pointer", fontWeight: 700, fontSize: "11px" }}>←</button>
+          <button onClick={() => setCalMonth(new Date(year, month - 1, 1))} style={{ border: "2px solid #000", backgroundColor: "#F5F0E8", width: "24px", height: "24px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <ChevronLeft size={13} strokeWidth={2.6} />
+          </button>
           <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: "11px" }}>{monthNames[month]} {year}</span>
-          <button onClick={() => setCalMonth(new Date(year, month + 1, 1))} style={{ border: "2px solid #000", backgroundColor: "#F5F0E8", width: "24px", height: "24px", cursor: "pointer", fontWeight: 700, fontSize: "11px" }}>→</button>
+          <button onClick={() => setCalMonth(new Date(year, month + 1, 1))} style={{ border: "2px solid #000", backgroundColor: "#F5F0E8", width: "24px", height: "24px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <ChevronRight size={13} strokeWidth={2.6} />
+          </button>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: "1px" }}>
           {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((d) => (
@@ -158,19 +173,21 @@ export default function EditTaskModal({ task, open, onClose }: EditTaskModalProp
           boxShadow: "8px 8px 0 #000",
           backgroundColor: "#F5F0E8",
           width: "520px",
-          maxWidth: "92vw",
+          maxWidth: "94vw",
+          maxHeight: "92vh",
+          overflowY: "auto",
           animation: closing ? "editModalOut 0.18s ease forwards" : "editModalIn 0.25s cubic-bezier(0.22,1,0.36,1) forwards",
         }}
       >
         {/* Header */}
-        <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: "10px 14px", backgroundColor: "#000", color: "#FFE600" }}>
-          <span style={{ fontSize: "14px" }}>✎</span>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: "10px 14px", backgroundColor: "#000", color: "#FFE600", position: "sticky", top: 0, zIndex: 10 }}>
+          <Pencil size={15} strokeWidth={2.6} className="text-[#FFE600]" />
           <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: "13px", letterSpacing: "0.08em", flex: 1 }}>EDIT TASK</div>
           <button onClick={handleClose}
             onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "#FF0033"; e.currentTarget.style.borderColor = "#FF0033"; e.currentTarget.style.color = "#fff"; }}
             onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; e.currentTarget.style.borderColor = "#FFE600"; e.currentTarget.style.color = "#FFE600"; }}
-            style={{ border: "2px solid #FFE600", backgroundColor: "transparent", color: "#FFE600", width: "24px", height: "24px", cursor: "pointer", fontWeight: 700, fontSize: "12px", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.15s" }}>
-            ✕
+            style={{ border: "2px solid #FFE600", backgroundColor: "transparent", color: "#FFE600", width: "24px", height: "24px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.15s" }}>
+            <X size={14} strokeWidth={2.6} />
           </button>
         </div>
 
@@ -191,16 +208,17 @@ export default function EditTaskModal({ task, open, onClose }: EditTaskModalProp
           </div>
 
           {/* Owner + Priority row */}
-          <div style={{ display: "flex", gap: "16px" }}>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "12px" }}>
             <div>
               <label style={lbl}>OWNER</label>
-              <div style={{ display: "flex", gap: "4px" }}>
+              <div style={{ display: "flex", gap: "4px", flexWrap: "wrap" }}>
                 {OWNERS.map((o) => {
                   const active = owner === o;
                   const c = OWNER_COLORS[o];
                   return (
                     <button key={o} onClick={() => setOwner(o)}
-                      style={{ padding: "4px 10px", border: "2px solid #000", boxShadow: active ? `3px 3px 0 ${c.bg === "#FFE600" ? "#000" : c.bg}` : "none", backgroundColor: active ? c.bg : "#F5F0E8", color: active ? c.color : "#888", fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: "10px", letterSpacing: "0.04em", cursor: "pointer", transition: "all 0.12s" }}>
+                      style={{ padding: "4px 10px", border: "2px solid #000", boxShadow: active ? `3px 3px 0 ${c.bg === "#FFE600" ? "#000" : c.bg}` : "none", backgroundColor: active ? c.bg : "#F5F0E8", color: active ? c.color : "#888", fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: "10px", letterSpacing: "0.04em", cursor: "pointer", transition: "all 0.12s", display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                      {getOwnerIconComponent(o, 11)}
                       {o.toUpperCase()}
                     </button>
                   );
@@ -209,13 +227,14 @@ export default function EditTaskModal({ task, open, onClose }: EditTaskModalProp
             </div>
             <div>
               <label style={lbl}>PRIORITY</label>
-              <div style={{ display: "flex", gap: "4px" }}>
+              <div style={{ display: "flex", gap: "4px", flexWrap: "wrap" }}>
                 {PRIORITIES.map((p) => {
                   const active = priority === p;
                   const c = PRIORITY_COLORS[p];
                   return (
                     <button key={p} onClick={() => setPriority(p)}
-                      style={{ padding: "4px 10px", border: "2px solid #000", boxShadow: active ? `3px 3px 0 ${c.bg}` : "none", backgroundColor: active ? c.bg : "#F5F0E8", color: active ? c.color : "#888", fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: "10px", letterSpacing: "0.04em", cursor: "pointer", transition: "all 0.12s" }}>
+                      style={{ padding: "4px 10px", border: "2px solid #000", boxShadow: active ? `3px 3px 0 ${c.bg}` : "none", backgroundColor: active ? c.bg : "#F5F0E8", color: active ? c.color : "#888", fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: "10px", letterSpacing: "0.04em", cursor: "pointer", transition: "all 0.12s", display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                      {getPriorityIconComponent(p, 11)}
                       {p.toUpperCase()}
                     </button>
                   );
@@ -227,13 +246,14 @@ export default function EditTaskModal({ task, open, onClose }: EditTaskModalProp
           {/* Status */}
           <div>
             <label style={lbl}>STATUS</label>
-            <div style={{ display: "flex", gap: "4px" }}>
+            <div style={{ display: "flex", gap: "4px", flexWrap: "wrap" }}>
               {STATUSES.map((s) => {
                 const active = status === s;
                 const c = STATUS_COLORS[s];
                 return (
                   <button key={s} onClick={() => setStatus(s)}
-                    style={{ padding: "4px 10px", border: "2px solid #000", boxShadow: active ? `3px 3px 0 ${c.bg === "#F5F0E8" ? "#000" : c.bg}` : "none", backgroundColor: active ? c.bg : "#F5F0E8", color: active ? c.color : "#888", fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: "10px", letterSpacing: "0.04em", cursor: "pointer", transition: "all 0.12s" }}>
+                    style={{ padding: "4px 10px", border: "2px solid #000", boxShadow: active ? `3px 3px 0 ${c.bg === "#F5F0E8" ? "#000" : c.bg}` : "none", backgroundColor: active ? c.bg : "#F5F0E8", color: active ? c.color : "#888", fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: "10px", letterSpacing: "0.04em", cursor: "pointer", transition: "all 0.12s", display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                    {getStatusIconComponent(s, 11)}
                     {getStatusLabel(s)}
                   </button>
                 );
@@ -242,18 +262,22 @@ export default function EditTaskModal({ task, open, onClose }: EditTaskModalProp
           </div>
 
           {/* Category + Due Date */}
-          <div style={{ display: "flex", gap: "12px", alignItems: "flex-end" }}>
-            <div>
-              <label style={lbl}>CATEGORY</label>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", alignItems: "flex-end" }}>
+            <div style={{ flex: 1, minWidth: "120px" }}>
+              <label style={{ ...lbl, display: "flex", alignItems: "center", gap: "4px" }}>
+                {getCategoryIcon(category, 11)}
+                <span>CATEGORY</span>
+              </label>
               <select value={category} onChange={(e) => setCategory(e.target.value)}
-                style={{ padding: "7px 10px", border: "2px solid #000", boxShadow: "2px 2px 0 #000", backgroundColor: "#fff", fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600, fontSize: "11px", cursor: "pointer", outline: "none", minWidth: "120px" }}>
+                style={{ width: "100%", padding: "7px 10px", border: "2px solid #000", boxShadow: "2px 2px 0 #000", backgroundColor: "#fff", fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600, fontSize: "11px", cursor: "pointer", outline: "none" }}>
                 {allCategories.map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
             <div style={{ position: "relative" }}>
               <label style={lbl}>DUE DATE</label>
               <button type="button" onClick={() => setShowCalendar((v) => !v)}
-                style={{ padding: "7px 10px", border: "2px solid #000", boxShadow: "2px 2px 0 #000", backgroundColor: dueDate ? "#FFE600" : "#fff", fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600, fontSize: "11px", cursor: "pointer", minWidth: "100px" }}>
+                style={{ padding: "7px 10px", border: "2px solid #000", boxShadow: "2px 2px 0 #000", backgroundColor: dueDate ? "#FFE600" : "#fff", fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600, fontSize: "11px", cursor: "pointer", minWidth: "100px", display: "inline-flex", alignItems: "center", gap: "5px" }}>
+                <Calendar size={12} strokeWidth={2.4} />
                 {dueDate ? new Date(dueDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "PICK DATE"}
               </button>
               {showCalendar && renderCalendar()}
@@ -262,7 +286,8 @@ export default function EditTaskModal({ task, open, onClose }: EditTaskModalProp
               <button type="button" onClick={() => setDueDate(null)}
                 onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "#FF0033"; e.currentTarget.style.color = "#fff"; }}
                 onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "#F5F0E8"; e.currentTarget.style.color = "#000"; }}
-                style={{ padding: "7px 10px", border: "2px solid #000", backgroundColor: "#F5F0E8", fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600, fontSize: "10px", cursor: "pointer", transition: "all 0.12s" }}>
+                style={{ padding: "7px 10px", border: "2px solid #000", backgroundColor: "#F5F0E8", fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600, fontSize: "10px", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "3px", transition: "all 0.12s" }}>
+                <X size={11} strokeWidth={2.6} />
                 CLEAR
               </button>
             )}

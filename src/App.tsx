@@ -11,6 +11,7 @@ import TrackPage from "@/pages/TrackPage";
 import AllTasksPage from "@/pages/AllTasksPage";
 import FilteredPage from "@/pages/FilteredPage";
 import TableViewPage from "@/pages/TableViewPage";
+import ProfilePage from "@/pages/ProfilePage";
 import { auth, onAuthStateChanged, signOut } from "@/lib/firebase";
 
 const queryClient = new QueryClient();
@@ -21,6 +22,8 @@ function AuthedApp({ onLogout }: { onLogout: () => void }) {
       <Switch>
         <Route path="/" component={DashboardPage} />
         <Route path="/add" component={AddTaskPage} />
+        <Route path="/profile" component={ProfilePage} />
+        <Route path="/settings" component={ProfilePage} />
         <Route path="/track/musab">
           {() => <TrackPage owner="Musab" />}
         </Route>
@@ -63,11 +66,16 @@ function App() {
     return <div style={{ width: "100vw", height: "100vh", backgroundColor: "#F5F0E8" }} />
   }
 
+  const routerBase =
+    import.meta.env.BASE_URL && import.meta.env.BASE_URL !== "/"
+      ? import.meta.env.BASE_URL.replace(/\/$/, "")
+      : undefined;
+
   return (
     <QueryClientProvider client={queryClient}>
       <TaskProvider>
         <ToastProvider>
-          <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+          <WouterRouter base={routerBase}>
             {isLoggedIn ? (
               <AuthedApp onLogout={() => signOut(auth)} />
             ) : (
