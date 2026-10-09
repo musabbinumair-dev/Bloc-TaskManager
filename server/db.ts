@@ -133,6 +133,13 @@ class Database {
         const raw = fs.readFileSync(DB_FILE, "utf-8");
         this.data = JSON.parse(raw);
       } else {
+        const fallbackSeed = path.resolve(__dirname, "../data/bloc.json");
+        if (fs.existsSync(fallbackSeed)) {
+          try {
+            const raw = fs.readFileSync(fallbackSeed, "utf-8");
+            this.data = JSON.parse(raw);
+          } catch {}
+        }
         this.save();
       }
     } catch (e) {
@@ -145,6 +152,20 @@ class Database {
         invites: [],
       };
       this.save();
+    }
+  }
+
+  public ensureFresh() {
+    try {
+      if (fs.existsSync(DB_FILE)) {
+        const raw = fs.readFileSync(DB_FILE, "utf-8");
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === "object" && Array.isArray(parsed.users)) {
+          this.data = parsed;
+        }
+      }
+    } catch {
+      // Keep existing memory state on parse error
     }
   }
 
@@ -163,13 +184,30 @@ class Database {
 
   // --- Users ---
   public findUserByEmail(email: string): DbUser | undefined {
+    this.ensureFresh();
     return this.data.users.find(
       (u) => u.email.toLowerCase() === email.trim().toLowerCase()
     );
   }
 
   public findUserById(id: string): DbUser | undefined {
+    this.ensureFresh();
     return this.data.users.find((u) => u.id === id);
+  }
+
+  public restoreUser(user: DbUser): DbUser {
+    this.ensureFresh();
+    const existing = this.data.users.find((u) => u.id === user.id);
+    if (existing) return existing;
+    this.data.users.push(user);
+    // Ensure default workspace exists
+    const memberships = this.data.members.filter((m) => m.userId === user.id);
+    if (memberships.length === 0) {
+      this.createWorkspace(`${user.name}'s Workspace`, "General", "Personal workspace", user.id);
+    } else {
+      this.save();
+    }
+    return user;
   }
 
   public async createUser(name: string, email: string, passwordPlain: string): Promise<DbUser> {
@@ -230,16 +268,19 @@ class Database {
   }
 
   public findWorkspaceById(id: string): DbWorkspace | undefined {
+    this.ensureFresh();
     return this.data.workspaces.find((w) => w.id === id);
   }
 
   public findWorkspaceByInviteCode(code: string): DbWorkspace | undefined {
+    this.ensureFresh();
     return this.data.workspaces.find(
       (w) => w.inviteCode.toUpperCase() === code.trim().toUpperCase()
     );
   }
 
   public getUserWorkspaces(userId: string): { workspace: DbWorkspace; role: string }[] {
+    this.ensureFresh();
     const memberships = this.data.members.filter((m) => m.userId === userId);
     return memberships
       .map((m) => {
@@ -259,6 +300,7 @@ class Database {
     role: "owner" | "admin" | "member";
     joinedAt: number;
   }[] {
+    this.ensureFresh();
     const memberships = this.data.members.filter((m) => m.workspaceId === workspaceId);
     const seenUserIds = new Set<string>();
     const result: any[] = [];
@@ -282,6 +324,7 @@ class Database {
   }
 
   public isMember(workspaceId: string, userId: string): boolean {
+    this.ensureFresh();
     return this.data.members.some(
       (m) => m.workspaceId === workspaceId && m.userId === userId
     );
@@ -292,6 +335,7 @@ class Database {
     userId: string,
     role: "owner" | "admin" | "member" = "member"
   ): DbWorkspaceMember {
+    this.ensureFresh();
     const existing = this.data.members.find(
       (m) => m.workspaceId === workspaceId && m.userId === userId
     );
@@ -315,6 +359,7 @@ class Database {
     email?: string,
     role: "member" | "admin" = "member"
   ): DbInvite {
+    this.ensureFresh();
     const invite: DbInvite = {
       id: `inv_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
       workspaceId,
@@ -329,11 +374,13 @@ class Database {
   }
 
   public getWorkspaceInvites(workspaceId: string): DbInvite[] {
+    this.ensureFresh();
     return this.data.invites.filter((i) => i.workspaceId === workspaceId);
   }
 
   // --- Tasks ---
   public getWorkspaceTasks(workspaceId: string): DbTask[] {
+    this.ensureFresh();
     return this.data.tasks.filter((t) => t.workspaceId === workspaceId);
   }
 

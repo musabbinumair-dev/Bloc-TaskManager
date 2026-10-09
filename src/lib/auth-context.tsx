@@ -108,6 +108,48 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return headers;
   };
 
+  const safeParseResponse = async (
+    res: Response,
+    fallbackErrorMessage = "Request failed"
+  ): Promise<{ ok: boolean; data: any; error?: string }> => {
+    const contentType = res.headers.get("content-type") || "";
+    let data: any = null;
+
+    if (contentType.includes("application/json")) {
+      try {
+        data = await res.json();
+      } catch (err: any) {
+        return {
+          ok: false,
+          data: null,
+          error: "Server returned invalid response. Please try again.",
+        };
+      }
+    } else {
+      const text = await res.text().catch(() => "");
+      return {
+        ok: false,
+        data: null,
+        error:
+          res.status === 404
+            ? "API service unavailable. Please check deployment."
+            : text && text.length < 100
+            ? text
+            : `${fallbackErrorMessage} (${res.status})`,
+      };
+    }
+
+    if (!res.ok) {
+      return {
+        ok: false,
+        data,
+        error: data?.error || `${fallbackErrorMessage} (${res.status})`,
+      };
+    }
+
+    return { ok: true, data };
+  };
+
   // Fetch current user & workspaces
   const refreshMe = useCallback(async () => {
     try {
@@ -207,10 +249,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
-      const data = await res.json();
-      if (!res.ok) {
-        return { success: false, error: data.error || "Failed to log in" };
+      const parsed = await safeParseResponse(res, "Failed to log in");
+      if (!parsed.ok) {
+        return { success: false, error: parsed.error || "Failed to log in" };
       }
+      const data = parsed.data;
       if (data.token) {
         localStorage.setItem("bloc_token", data.token);
       }
@@ -232,10 +275,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, email, password }),
       });
-      const data = await res.json();
-      if (!res.ok) {
-        return { success: false, error: data.error || "Failed to create account" };
+      const parsed = await safeParseResponse(res, "Failed to create account");
+      if (!parsed.ok) {
+        return { success: false, error: parsed.error || "Failed to create account" };
       }
+      const data = parsed.data;
       if (data.token) {
         localStorage.setItem("bloc_token", data.token);
       }
@@ -282,10 +326,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         headers: getHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify(updates),
       });
-      const data = await res.json();
-      if (!res.ok) {
-        return { success: false, error: data.error || "Failed to update profile" };
+      const parsed = await safeParseResponse(res, "Failed to update profile");
+      if (!parsed.ok) {
+        return { success: false, error: parsed.error || "Failed to update profile" };
       }
+      const data = parsed.data;
       setUser(data.user);
       localStorage.setItem("bloc_user", JSON.stringify(data.user));
       return { success: true };
@@ -301,10 +346,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         headers: getHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({ name, category, description }),
       });
-      const data = await res.json();
-      if (!res.ok) {
-        return { success: false, error: data.error || "Failed to create workspace" };
+      const parsed = await safeParseResponse(res, "Failed to create workspace");
+      if (!parsed.ok) {
+        return { success: false, error: parsed.error || "Failed to create workspace" };
       }
+      const data = parsed.data;
       localStorage.setItem("bloc_current_workspace_id", data.workspace.id);
       localStorage.setItem("bloc_current_workspace", JSON.stringify(data.workspace));
       setCurrentWorkspace(data.workspace);
@@ -322,10 +368,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         headers: getHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({ inviteCode }),
       });
-      const data = await res.json();
-      if (!res.ok) {
-        return { success: false, error: data.error || "Failed to join workspace" };
+      const parsed = await safeParseResponse(res, "Failed to join workspace");
+      if (!parsed.ok) {
+        return { success: false, error: parsed.error || "Failed to join workspace" };
       }
+      const data = parsed.data;
       localStorage.setItem("bloc_current_workspace_id", data.workspace.id);
       localStorage.setItem("bloc_current_workspace", JSON.stringify(data.workspace));
       setCurrentWorkspace(data.workspace);
@@ -353,10 +400,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         headers: getHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({ email, role }),
       });
-      const data = await res.json();
-      if (!res.ok) {
-        return { success: false, error: data.error || "Failed to create invite" };
+      const parsed = await safeParseResponse(res, "Failed to create invite");
+      if (!parsed.ok) {
+        return { success: false, error: parsed.error || "Failed to create invite" };
       }
+      const data = parsed.data;
       setInvites((prev) => [data.invite, ...prev]);
       return { success: true, invite: data.invite };
     } catch (e: any) {

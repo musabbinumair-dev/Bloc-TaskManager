@@ -18,17 +18,57 @@ const app = express();
 app.use(express.json());
 app.use(cookieParser());
 
+// CORS & Preflight support
+app.use((req: Request, res: Response, next: NextFunction) => {
+  const origin = (req.headers.origin as string) || "*";
+  res.header("Access-Control-Allow-Origin", origin);
+  res.header("Access-Control-Allow-Credentials", "true");
+  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
+  res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(200);
+  }
+  next();
+});
+
+// Normalize request URL if proxy or Vercel routes strip /api prefix
+app.use((req: Request, _res: Response, next: NextFunction) => {
+  if (req.url && !req.url.startsWith("/api") && !req.url.startsWith("/@") && !req.url.startsWith("/src")) {
+    if (req.url.startsWith("/auth/") || req.url.startsWith("/workspaces")) {
+      req.url = `/api${req.url}`;
+    }
+  }
+  next();
+});
+
 // Auth Helper
 interface AuthPayload {
   userId: string;
+  name?: string;
+  email?: string;
+  color?: string;
+  roleTitle?: string;
 }
 
 export interface AuthRequest extends Request {
   user?: DbUser;
 }
 
-function generateToken(userId: string): string {
-  return jwt.sign({ userId }, JWT_SECRET, { expiresIn: "30d" });
+function generateToken(user: { id: string; name?: string; email?: string; color?: string; roleTitle?: string } | string): string {
+  if (typeof user === "string") {
+    return jwt.sign({ userId: user }, JWT_SECRET, { expiresIn: "30d" });
+  }
+  return jwt.sign(
+    {
+      userId: user.id,
+      name: user.name,
+      email: user.email,
+      color: user.color,
+      roleTitle: user.roleTitle,
+    },
+    JWT_SECRET,
+    { expiresIn: "30d" }
+  );
 }
 
 function authenticate(req: AuthRequest, res: Response, next: NextFunction) {
@@ -42,7 +82,19 @@ function authenticate(req: AuthRequest, res: Response, next: NextFunction) {
 
   try {
     const payload = jwt.verify(token, JWT_SECRET) as AuthPayload;
-    const user = db.findUserById(payload.userId);
+    let user = db.findUserById(payload.userId);
+    if (!user && payload.email && payload.name) {
+      // Re-hydrate user in case serverless container filesystem was freshly initialized
+      user = db.restoreUser({
+        id: payload.userId,
+        name: payload.name,
+        email: payload.email,
+        color: payload.color || "#FFE600",
+        roleTitle: payload.roleTitle || "Team Member",
+        passwordHash: "",
+        createdAt: Date.now(),
+      });
+    }
     if (!user) {
       return res.status(401).json({ error: "User session expired or user not found." });
     }
@@ -78,7 +130,7 @@ app.post("/api/auth/register", async (req: Request, res: Response) => {
     }
 
     const user = await db.createUser(name, email, password);
-    const token = generateToken(user.id);
+    const token = generateToken(user);
 
     res.cookie("bloc_token", token, {
       httpOnly: true,
@@ -122,7 +174,7 @@ app.post("/api/auth/login", async (req: Request, res: Response) => {
       return res.status(401).json({ error: "Invalid email or password." });
     }
 
-    const token = generateToken(user.id);
+    const token = generateToken(user);
 
     res.cookie("bloc_token", token, {
       httpOnly: true,
@@ -156,7 +208,11 @@ app.post("/api/auth/logout", (_req: Request, res: Response) => {
 // Current user profile + workspaces
 app.get("/api/auth/me", authenticate, (req: AuthRequest, res: Response) => {
   const user = req.user!;
-  const workspaces = db.getUserWorkspaces(user.id);
+  let workspaces = db.getUserWorkspaces(user.id);
+  if (workspaces.length === 0) {
+    db.createWorkspace(`${user.name}'s Workspace`, "General", "Personal workspace", user.id);
+    workspaces = db.getUserWorkspaces(user.id);
+  }
 
   return res.json({
     user: {

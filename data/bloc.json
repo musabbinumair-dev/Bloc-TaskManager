@@ -1,5 +1,15 @@
 {
-  "users": [],
+  "users": [
+    {
+      "id": "usr_1791530192020_vqmdf",
+      "name": "Vercel Test User",
+      "email": "vercel_test@example.com",
+      "passwordHash": "$2b$10$EYCGEsBzYYUZ2rN4unooauwX9gAPGZHp6NT2zEkDDFc9eVzLdFfsm",
+      "color": "#FF0033",
+      "roleTitle": "Team Member",
+      "createdAt": 1791530192020
+    }
+  ],
   "workspaces": [],
   "members": [],
   "tasks": [],
