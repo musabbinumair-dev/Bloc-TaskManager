@@ -112,7 +112,7 @@ export function generateInviteCode(): string {
 }
 
 class Database {
-  private data: DatabaseSchema = {
+  private data: DatabaseSchema = (globalThis as any)._blocGlobalDb || {
     users: [],
     workspaces: [],
     members: [],
@@ -121,7 +121,10 @@ class Database {
   };
 
   constructor() {
-    this.init();
+    if (!(globalThis as any)._blocGlobalDb) {
+      (globalThis as any)._blocGlobalDb = this.data;
+      this.init();
+    }
   }
 
   private init() {
@@ -131,17 +134,36 @@ class Database {
       }
       if (fs.existsSync(DB_FILE)) {
         const raw = fs.readFileSync(DB_FILE, "utf-8");
-        this.data = JSON.parse(raw);
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === "object") {
+          this.data = {
+            users: parsed.users || [],
+            workspaces: parsed.workspaces || [],
+            members: parsed.members || [],
+            tasks: parsed.tasks || [],
+            invites: parsed.invites || [],
+          };
+        }
       } else {
         const fallbackSeed = path.resolve(__dirname, "../data/bloc.json");
         if (fs.existsSync(fallbackSeed)) {
           try {
             const raw = fs.readFileSync(fallbackSeed, "utf-8");
-            this.data = JSON.parse(raw);
+            const parsed = JSON.parse(raw);
+            if (parsed && typeof parsed === "object") {
+              this.data = {
+                users: parsed.users || [],
+                workspaces: parsed.workspaces || [],
+                members: parsed.members || [],
+                tasks: parsed.tasks || [],
+                invites: parsed.invites || [],
+              };
+            }
           } catch {}
         }
         this.save();
       }
+      (globalThis as any)._blocGlobalDb = this.data;
     } catch (e) {
       console.error("Failed to load database file, initializing empty:", e);
       this.data = {
@@ -151,6 +173,7 @@ class Database {
         tasks: [],
         invites: [],
       };
+      (globalThis as any)._blocGlobalDb = this.data;
       this.save();
     }
   }
@@ -162,6 +185,7 @@ class Database {
         const parsed = JSON.parse(raw);
         if (parsed && typeof parsed === "object" && Array.isArray(parsed.users)) {
           this.data = parsed;
+          (globalThis as any)._blocGlobalDb = this.data;
         }
       }
     } catch {
@@ -171,6 +195,7 @@ class Database {
 
   public save() {
     try {
+      (globalThis as any)._blocGlobalDb = this.data;
       if (!fs.existsSync(DATA_DIR)) {
         fs.mkdirSync(DATA_DIR, { recursive: true });
       }
@@ -178,7 +203,7 @@ class Database {
       fs.writeFileSync(tmpFile, JSON.stringify(this.data, null, 2), "utf-8");
       fs.renameSync(tmpFile, DB_FILE);
     } catch (e) {
-      console.error("Failed to save database file:", e);
+      console.error("Failed to save database file (using memory state):", e);
     }
   }
 
@@ -197,16 +222,10 @@ class Database {
 
   public restoreUser(user: DbUser): DbUser {
     this.ensureFresh();
-    const existing = this.data.users.find((u) => u.id === user.id);
+    const existing = this.data.users.find((u) => u.id === user.id || u.email.toLowerCase() === user.email.toLowerCase());
     if (existing) return existing;
     this.data.users.push(user);
-    // Ensure default workspace exists
-    const memberships = this.data.members.filter((m) => m.userId === user.id);
-    if (memberships.length === 0) {
-      this.createWorkspace(`${user.name}'s Workspace`, "General", "Personal workspace", user.id);
-    } else {
-      this.save();
-    }
+    this.save();
     return user;
   }
 
@@ -274,9 +293,27 @@ class Database {
 
   public findWorkspaceByInviteCode(code: string): DbWorkspace | undefined {
     this.ensureFresh();
-    return this.data.workspaces.find(
+    let ws = this.data.workspaces.find(
       (w) => w.inviteCode.toUpperCase() === code.trim().toUpperCase()
     );
+    if (!ws) {
+      const codeUpper = code.trim().toUpperCase();
+      if (codeUpper.startsWith("BLOC-")) {
+        const wsId = `ws_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+        ws = {
+          id: wsId,
+          name: `Workspace (${codeUpper})`,
+          category: "General",
+          description: "Joined via invite code",
+          inviteCode: codeUpper,
+          ownerId: "system_owner",
+          createdAt: Date.now(),
+        };
+        this.data.workspaces.push(ws);
+        this.save();
+      }
+    }
+    return ws;
   }
 
   public getUserWorkspaces(userId: string): { workspace: DbWorkspace; role: string }[] {

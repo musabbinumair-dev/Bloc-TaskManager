@@ -4,6 +4,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useTaskContext } from "@/lib/task-context";
 import { getOwnerStyle } from "@/lib/helpers";
 import InviteModal from "@/components/InviteModal";
+import { PWAInstallButton } from "@/components/PWAInstallButton";
 import {
   LayoutDashboard,
   PlusSquare,
@@ -211,6 +212,9 @@ export default function AppShell({ children, onLogout, onOpenOnboarding }: AppSh
             <Users size={14} strokeWidth={2.6} />
             <span className="hidden sm:inline">INVITE TEAM</span>
           </button>
+
+          {/* PWA Install Button */}
+          <PWAInstallButton variant="compact" />
 
           {/* User Profile */}
           <Link href="/profile">
@@ -571,6 +575,10 @@ export default function AppShell({ children, onLogout, onOpenOnboarding }: AppSh
                   </Link>
                 ))}
               </div>
+            </div>
+
+            <div className="mb-3">
+              <PWAInstallButton variant="full" className="w-full justify-center" />
             </div>
 
             <button

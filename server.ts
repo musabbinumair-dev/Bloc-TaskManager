@@ -208,11 +208,7 @@ app.post("/api/auth/logout", (_req: Request, res: Response) => {
 // Current user profile + workspaces
 app.get("/api/auth/me", authenticate, (req: AuthRequest, res: Response) => {
   const user = req.user!;
-  let workspaces = db.getUserWorkspaces(user.id);
-  if (workspaces.length === 0) {
-    db.createWorkspace(`${user.name}'s Workspace`, "General", "Personal workspace", user.id);
-    workspaces = db.getUserWorkspaces(user.id);
-  }
+  const workspaces = db.getUserWorkspaces(user.id);
 
   return res.json({
     user: {
