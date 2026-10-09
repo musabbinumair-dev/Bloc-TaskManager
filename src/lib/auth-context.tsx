@@ -1,4 +1,10 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import {
+  saveVaultAccount,
+  getVaultAccount,
+  updateVaultAccountWorkspaces,
+  setLastActiveEmail,
+} from "./account-vault";
 
 export interface User {
   id: string;
@@ -168,20 +174,49 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const data = await res.json();
         setUser(data.user);
         localStorage.setItem("bloc_user", JSON.stringify(data.user));
-        setWorkspaces(data.workspaces || []);
-        localStorage.setItem("bloc_workspaces", JSON.stringify(data.workspaces || []));
+
+        let currentWsList = data.workspaces || [];
+
+        // If serverless container woke up with 0 workspaces, restore from client vault
+        if (currentWsList.length === 0 && data.user?.email) {
+          const vault = getVaultAccount(data.user.email);
+          if (vault?.workspaces && vault.workspaces.length > 0) {
+            try {
+              const syncRes = await fetch("/api/auth/sync-vault", {
+                method: "POST",
+                headers: getHeaders({ "Content-Type": "application/json" }),
+                body: JSON.stringify({ workspaces: vault.workspaces, tasks: vault.tasks }),
+              });
+              if (syncRes.ok) {
+                const syncData = await syncRes.json();
+                if (syncData.workspaces && syncData.workspaces.length > 0) {
+                  currentWsList = syncData.workspaces;
+                }
+              }
+            } catch {}
+          }
+        }
+
+        setWorkspaces(currentWsList);
+        localStorage.setItem("bloc_workspaces", JSON.stringify(currentWsList));
+
+        // Keep client vault updated with user and workspace list
+        if (data.user?.email) {
+          saveVaultAccount(data.user);
+          updateVaultAccountWorkspaces(data.user.email, currentWsList);
+        }
 
         // Pick current workspace if none or if current workspace is not in the list
-        if (data.workspaces && data.workspaces.length > 0) {
+        if (currentWsList.length > 0) {
           const savedWsId = localStorage.getItem("bloc_current_workspace_id");
-          const found = data.workspaces.find((w: any) => w.workspace.id === savedWsId);
+          const found = currentWsList.find((w: any) => w.workspace.id === savedWsId);
           if (found) {
             setCurrentWorkspace(found.workspace);
             localStorage.setItem("bloc_current_workspace", JSON.stringify(found.workspace));
           } else {
-            setCurrentWorkspace(data.workspaces[0].workspace);
-            localStorage.setItem("bloc_current_workspace_id", data.workspaces[0].workspace.id);
-            localStorage.setItem("bloc_current_workspace", JSON.stringify(data.workspaces[0].workspace));
+            setCurrentWorkspace(currentWsList[0].workspace);
+            localStorage.setItem("bloc_current_workspace_id", currentWsList[0].workspace.id);
+            localStorage.setItem("bloc_current_workspace", JSON.stringify(currentWsList[0].workspace));
           }
         } else {
           setCurrentWorkspace(null);
@@ -244,10 +279,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = async (email: string, password: string) => {
     try {
+      const cleanEmail = email.trim().toLowerCase();
+      const clientVaultAccount = getVaultAccount(cleanEmail);
+
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email: cleanEmail, password, clientVaultAccount }),
       });
       const parsed = await safeParseResponse(res, "Failed to log in");
       if (!parsed.ok) {
@@ -260,6 +298,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (data.user) {
         localStorage.setItem("bloc_user", JSON.stringify(data.user));
       }
+      if (data.vaultData) {
+        saveVaultAccount(data.vaultData);
+      } else if (data.user) {
+        saveVaultAccount({ ...data.user, email: cleanEmail });
+      }
+
       setUser(data.user);
       await refreshMe();
       return { success: true };
@@ -270,10 +314,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const register = async (name: string, email: string, password: string) => {
     try {
+      const cleanEmail = email.trim().toLowerCase();
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, password }),
+        body: JSON.stringify({ name: name.trim(), email: cleanEmail, password }),
       });
       const parsed = await safeParseResponse(res, "Failed to create account");
       if (!parsed.ok) {
@@ -286,6 +331,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (data.user) {
         localStorage.setItem("bloc_user", JSON.stringify(data.user));
       }
+      if (data.vaultData) {
+        saveVaultAccount(data.vaultData);
+      } else if (data.user) {
+        saveVaultAccount({ ...data.user, email: cleanEmail });
+      }
+
       setUser(data.user);
       await refreshMe();
       return { success: true };
@@ -296,11 +347,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = async () => {
     try {
+      if (user?.email) {
+        setLastActiveEmail(user.email);
+      }
       await fetch("/api/auth/logout", {
         method: "POST",
         headers: getHeaders(),
       });
     } catch {}
+    // Clear active session only — the persistent account vault remains safely intact
     localStorage.removeItem("bloc_token");
     localStorage.removeItem("bloc_user");
     localStorage.removeItem("bloc_workspaces");
@@ -333,6 +388,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const data = parsed.data;
       setUser(data.user);
       localStorage.setItem("bloc_user", JSON.stringify(data.user));
+      saveVaultAccount(data.user);
       return { success: true };
     } catch (e: any) {
       return { success: false, error: e.message || "Failed to update profile" };
@@ -354,6 +410,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       localStorage.setItem("bloc_current_workspace_id", data.workspace.id);
       localStorage.setItem("bloc_current_workspace", JSON.stringify(data.workspace));
       setCurrentWorkspace(data.workspace);
+
+      if (user?.email && data.workspace) {
+        const nextList = [...workspaces, { workspace: data.workspace, role: "owner" }];
+        updateVaultAccountWorkspaces(user.email, nextList);
+      }
+
       await refreshMe();
       return { success: true, workspace: data.workspace };
     } catch (e: any) {
@@ -376,6 +438,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       localStorage.setItem("bloc_current_workspace_id", data.workspace.id);
       localStorage.setItem("bloc_current_workspace", JSON.stringify(data.workspace));
       setCurrentWorkspace(data.workspace);
+
+      if (user?.email && data.workspace) {
+        const nextList = [...workspaces, { workspace: data.workspace, role: data.role || "member" }];
+        updateVaultAccountWorkspaces(user.email, nextList);
+      }
+
       await refreshMe();
       return { success: true, workspace: data.workspace };
     } catch (e: any) {

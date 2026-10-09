@@ -1,23 +1,38 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useToastNotification } from "@/components/ToastContainer";
-import { Lock, Mail, User as UserIcon, ArrowRight, ShieldCheck, Sparkles } from "lucide-react";
+import { Lock, Mail, User as UserIcon, ArrowRight, ShieldCheck, Sparkles, UserCheck } from "lucide-react";
+import { getLastActiveEmail, getSavedAccountsList, VaultAccount } from "@/lib/account-vault";
 
 export default function LoginPage() {
-  const [tab, setTab] = useState<"login" | "register">("register");
+  const savedAccounts = getSavedAccountsList();
+  const lastActive = getLastActiveEmail();
+
+  // If user previously had an account or just logged out, default to Sign In
+  const [tab, setTab] = useState<"login" | "register">(() => {
+    return (lastActive || savedAccounts.length > 0) ? "login" : "register";
+  });
   
   // Register state
   const [name, setName] = useState("");
   const [registerEmail, setRegisterEmail] = useState("");
   const [registerPassword, setRegisterPassword] = useState("");
 
-  // Login state
-  const [loginEmail, setLoginEmail] = useState("");
+  // Login state - auto-fill with last logged-in email
+  const [loginEmail, setLoginEmail] = useState(() => {
+    return lastActive || (savedAccounts[0]?.email || "");
+  });
   const [loginPassword, setLoginPassword] = useState("");
 
   const [loading, setLoading] = useState(false);
   const { login, register } = useAuth();
   const { showToast } = useToastNotification();
+
+  function selectSavedAccount(acc: VaultAccount) {
+    setTab("login");
+    setLoginEmail(acc.email);
+    showToast(`Selected ${acc.name} (${acc.email}). Enter password to sign in.`, "info");
+  }
 
   async function handleLoginSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -336,6 +351,55 @@ export default function LoginPage() {
         {/* LOGIN FORM */}
         {tab === "login" && (
           <form onSubmit={handleLoginSubmit}>
+            {savedAccounts.length > 0 && (
+              <div style={{ marginBottom: "16px", padding: "10px", backgroundColor: "#F5F0E8", border: "2px solid #000" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "10px", fontWeight: 800, fontFamily: "'Space Grotesk', sans-serif", letterSpacing: "0.06em", marginBottom: "8px" }}>
+                  <UserCheck size={13} />
+                  <span>SAVED ACCOUNTS ON THIS DEVICE:</span>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                  {savedAccounts.slice(0, 3).map((acc) => (
+                    <button
+                      key={acc.email}
+                      type="button"
+                      onClick={() => selectSavedAccount(acc)}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        padding: "6px 8px",
+                        backgroundColor: loginEmail.toLowerCase() === acc.email.toLowerCase() ? "#FFE600" : "#fff",
+                        border: "2px solid #000",
+                        boxShadow: loginEmail.toLowerCase() === acc.email.toLowerCase() ? "2px 2px 0 #000" : "none",
+                        cursor: "pointer",
+                        textAlign: "left",
+                      }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                        <div
+                          style={{
+                            width: "12px",
+                            height: "12px",
+                            backgroundColor: acc.color || "#FFE600",
+                            border: "1.5px solid #000",
+                          }}
+                        />
+                        <div>
+                          <div style={{ fontSize: "11px", fontWeight: 700, fontFamily: "'Space Grotesk', sans-serif" }}>
+                            {acc.name}
+                          </div>
+                          <div style={{ fontSize: "10px", color: "#555" }}>{acc.email}</div>
+                        </div>
+                      </div>
+                      <span style={{ fontSize: "9px", fontWeight: 800, padding: "2px 6px", backgroundColor: "#000", color: "#fff" }}>
+                        {loginEmail.toLowerCase() === acc.email.toLowerCase() ? "SELECTED" : "USE"}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div style={{ marginBottom: "14px" }}>
               <label
                 style={{

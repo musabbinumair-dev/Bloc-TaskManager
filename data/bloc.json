@@ -8,10 +8,37 @@
       "color": "#FF0033",
       "roleTitle": "Team Member",
       "createdAt": 1791530192020
+    },
+    {
+      "id": "usr_1791550665102_3hyyr",
+      "name": "Musab",
+      "email": "musab.txt@gmail.com",
+      "passwordHash": "$2b$10$7ozs7TBRT3OBvH82YNmG0O6YjQFK/c13dmkGiKEfZYZV5lo9eNMj2",
+      "color": "#00CC44",
+      "roleTitle": "Team Member",
+      "createdAt": 1791550665102
     }
   ],
-  "workspaces": [],
-  "members": [],
+  "workspaces": [
+    {
+      "id": "ws_1791550684648_8r5sr",
+      "name": "Linely Queue System",
+      "category": "Engineering",
+      "description": "",
+      "inviteCode": "BLOC-8MNL",
+      "ownerId": "usr_1791550665102_3hyyr",
+      "createdAt": 1791550684648
+    }
+  ],
+  "members": [
+    {
+      "id": "mem_1791550684648_7qxnb",
+      "workspaceId": "ws_1791550684648_8r5sr",
+      "userId": "usr_1791550665102_3hyyr",
+      "role": "owner",
+      "joinedAt": 1791550684648
+    }
+  ],
   "tasks": [],
   "invites": []
 }

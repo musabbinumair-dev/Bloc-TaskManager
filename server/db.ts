@@ -203,8 +203,15 @@ class Database {
       fs.writeFileSync(tmpFile, JSON.stringify(this.data, null, 2), "utf-8");
       fs.renameSync(tmpFile, DB_FILE);
     } catch (e) {
-      console.error("Failed to save database file (using memory state):", e);
+      console.error("Failed to save primary database file (using memory state):", e);
     }
+
+    try {
+      const repoSeed = path.resolve(__dirname, "../data/bloc.json");
+      if (fs.existsSync(repoSeed) && repoSeed !== DB_FILE) {
+        fs.writeFileSync(repoSeed, JSON.stringify(this.data, null, 2), "utf-8");
+      }
+    } catch {}
   }
 
   // --- Users ---
@@ -222,11 +229,83 @@ class Database {
 
   public restoreUser(user: DbUser): DbUser {
     this.ensureFresh();
-    const existing = this.data.users.find((u) => u.id === user.id || u.email.toLowerCase() === user.email.toLowerCase());
-    if (existing) return existing;
+    const existingIndex = this.data.users.findIndex(
+      (u) => u.id === user.id || u.email.toLowerCase() === user.email.toLowerCase()
+    );
+    if (existingIndex >= 0) {
+      const existing = this.data.users[existingIndex];
+      if (user.passwordHash && (!existing.passwordHash || existing.passwordHash === "")) {
+        existing.passwordHash = user.passwordHash;
+      }
+      if (user.name) existing.name = user.name;
+      if (user.color) existing.color = user.color;
+      if (user.roleTitle) existing.roleTitle = user.roleTitle;
+      if (user.bioStatus) existing.bioStatus = user.bioStatus;
+      this.save();
+      return existing;
+    }
     this.data.users.push(user);
     this.save();
     return user;
+  }
+
+  public syncUserWorkspaces(
+    userId: string,
+    workspacesList: { workspace: DbWorkspace; role?: string }[]
+  ): void {
+    this.ensureFresh();
+    if (!Array.isArray(workspacesList)) return;
+    for (const item of workspacesList) {
+      if (!item || !item.workspace) continue;
+      const ws = item.workspace;
+      const existingWs = this.data.workspaces.find((w) => w.id === ws.id);
+      if (!existingWs) {
+        this.data.workspaces.push(ws);
+      }
+      const hasMember = this.data.members.some(
+        (m) => m.workspaceId === ws.id && m.userId === userId
+      );
+      if (!hasMember) {
+        this.data.members.push({
+          id: `mem_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+          workspaceId: ws.id,
+          userId,
+          role: (item.role as any) || (ws.ownerId === userId ? "owner" : "member"),
+          joinedAt: Date.now(),
+        });
+      }
+    }
+    this.save();
+  }
+
+  public syncTasks(tasks: DbTask[]): void {
+    this.ensureFresh();
+    if (!Array.isArray(tasks)) return;
+    for (const t of tasks) {
+      if (!t || !t.id) continue;
+      const idx = this.data.tasks.findIndex((existing) => existing.id === t.id);
+      if (idx >= 0) {
+        this.data.tasks[idx] = { ...this.data.tasks[idx], ...t };
+      } else {
+        this.data.tasks.push(t);
+      }
+    }
+    this.save();
+  }
+
+  public syncMembers(members: DbWorkspaceMember[]): void {
+    this.ensureFresh();
+    if (!Array.isArray(members)) return;
+    for (const m of members) {
+      if (!m || !m.workspaceId || !m.userId) continue;
+      const exists = this.data.members.some(
+        (existing) => existing.workspaceId === m.workspaceId && existing.userId === m.userId
+      );
+      if (!exists) {
+        this.data.members.push(m);
+      }
+    }
+    this.save();
   }
 
   public async createUser(name: string, email: string, passwordPlain: string): Promise<DbUser> {
@@ -293,25 +372,28 @@ class Database {
 
   public findWorkspaceByInviteCode(code: string): DbWorkspace | undefined {
     this.ensureFresh();
+    if (!code) return undefined;
+    const trimmed = code.trim().toUpperCase();
+    const standardCode = trimmed.startsWith("BLOC-") ? trimmed : `BLOC-${trimmed}`;
+
     let ws = this.data.workspaces.find(
-      (w) => w.inviteCode.toUpperCase() === code.trim().toUpperCase()
+      (w) =>
+        w.inviteCode.toUpperCase() === trimmed ||
+        w.inviteCode.toUpperCase() === standardCode
     );
-    if (!ws) {
-      const codeUpper = code.trim().toUpperCase();
-      if (codeUpper.startsWith("BLOC-")) {
-        const wsId = `ws_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-        ws = {
-          id: wsId,
-          name: `Workspace (${codeUpper})`,
-          category: "General",
-          description: "Joined via invite code",
-          inviteCode: codeUpper,
-          ownerId: "system_owner",
-          createdAt: Date.now(),
-        };
-        this.data.workspaces.push(ws);
-        this.save();
-      }
+    if (!ws && trimmed.length >= 3) {
+      const wsId = `ws_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+      ws = {
+        id: wsId,
+        name: `Team Workspace (${standardCode})`,
+        category: "General",
+        description: "Joined via invite code",
+        inviteCode: standardCode,
+        ownerId: "system_owner",
+        createdAt: Date.now(),
+      };
+      this.data.workspaces.push(ws);
+      this.save();
     }
     return ws;
   }

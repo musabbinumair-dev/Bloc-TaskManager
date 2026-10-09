@@ -54,7 +54,7 @@ export interface AuthRequest extends Request {
   user?: DbUser;
 }
 
-function generateToken(user: { id: string; name?: string; email?: string; color?: string; roleTitle?: string } | string): string {
+function generateToken(user: { id: string; name?: string; email?: string; color?: string; roleTitle?: string; passwordHash?: string } | string): string {
   if (typeof user === "string") {
     return jwt.sign({ userId: user }, JWT_SECRET, { expiresIn: "30d" });
   }
@@ -65,6 +65,7 @@ function generateToken(user: { id: string; name?: string; email?: string; color?
       email: user.email,
       color: user.color,
       roleTitle: user.roleTitle,
+      passwordHash: user.passwordHash || "",
     },
     JWT_SECRET,
     { expiresIn: "30d" }
@@ -81,7 +82,7 @@ function authenticate(req: AuthRequest, res: Response, next: NextFunction) {
   }
 
   try {
-    const payload = jwt.verify(token, JWT_SECRET) as AuthPayload;
+    const payload = jwt.verify(token, JWT_SECRET) as AuthPayload & { passwordHash?: string };
     let user = db.findUserById(payload.userId);
     if (!user && payload.email && payload.name) {
       // Re-hydrate user in case serverless container filesystem was freshly initialized
@@ -91,9 +92,12 @@ function authenticate(req: AuthRequest, res: Response, next: NextFunction) {
         email: payload.email,
         color: payload.color || "#FFE600",
         roleTitle: payload.roleTitle || "Team Member",
-        passwordHash: "",
+        passwordHash: payload.passwordHash || "",
         createdAt: Date.now(),
       });
+    } else if (user && !user.passwordHash && payload.passwordHash) {
+      user.passwordHash = payload.passwordHash;
+      db.save();
     }
     if (!user) {
       return res.status(401).json({ error: "User session expired or user not found." });
@@ -124,12 +128,13 @@ app.post("/api/auth/register", async (req: Request, res: Response) => {
       return res.status(400).json({ error: "Password must be at least 6 characters." });
     }
 
-    const existing = db.findUserByEmail(email);
+    const cleanEmail = email.trim().toLowerCase();
+    const existing = db.findUserByEmail(cleanEmail);
     if (existing) {
       return res.status(409).json({ error: "An account with this email already exists." });
     }
 
-    const user = await db.createUser(name, email, password);
+    const user = await db.createUser(name, cleanEmail, password);
     const token = generateToken(user);
 
     res.cookie("bloc_token", token, {
@@ -148,6 +153,15 @@ app.post("/api/auth/register", async (req: Request, res: Response) => {
         roleTitle: user.roleTitle,
         createdAt: user.createdAt,
       },
+      vaultData: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        color: user.color,
+        roleTitle: user.roleTitle,
+        passwordHash: user.passwordHash,
+        createdAt: user.createdAt,
+      },
     });
   } catch (e: any) {
     console.error("Register error:", e);
@@ -155,23 +169,90 @@ app.post("/api/auth/register", async (req: Request, res: Response) => {
   }
 });
 
-// Login
+// Login with multi-tier re-hydration (prevents account loss on serverless cold starts)
 app.post("/api/auth/login", async (req: Request, res: Response) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, clientVaultAccount } = req.body;
 
     if (!email || !password) {
       return res.status(400).json({ error: "Email and password are required." });
     }
 
-    const user = db.findUserByEmail(email);
+    const cleanEmail = email.trim().toLowerCase();
+    let user = db.findUserByEmail(cleanEmail);
+
+    // If user is missing from current server container (e.g. fresh Vercel lambda instance)
+    // but client vault has account record registered on this browser:
+    if (!user && clientVaultAccount && clientVaultAccount.email?.toLowerCase() === cleanEmail) {
+      if (clientVaultAccount.passwordHash) {
+        const isVaultMatch = await bcrypt.compare(password, clientVaultAccount.passwordHash);
+        if (isVaultMatch) {
+          user = db.restoreUser({
+            id: clientVaultAccount.id || `usr_${Date.now()}`,
+            name: clientVaultAccount.name || cleanEmail.split("@")[0],
+            email: cleanEmail,
+            passwordHash: clientVaultAccount.passwordHash,
+            color: clientVaultAccount.color || "#FFE600",
+            roleTitle: clientVaultAccount.roleTitle || "Team Member",
+            bioStatus: clientVaultAccount.bioStatus,
+            createdAt: clientVaultAccount.createdAt || Date.now(),
+          });
+          if (Array.isArray(clientVaultAccount.workspaces)) {
+            db.syncUserWorkspaces(user.id, clientVaultAccount.workspaces);
+          }
+        }
+      } else {
+        // Vault has account metadata, hash the password and restore
+        const newHash = await bcrypt.hash(password, 10);
+        user = db.restoreUser({
+          id: clientVaultAccount.id || `usr_${Date.now()}`,
+          name: clientVaultAccount.name || cleanEmail.split("@")[0],
+          email: cleanEmail,
+          passwordHash: newHash,
+          color: clientVaultAccount.color || "#FFE600",
+          roleTitle: clientVaultAccount.roleTitle || "Team Member",
+          bioStatus: clientVaultAccount.bioStatus,
+          createdAt: clientVaultAccount.createdAt || Date.now(),
+        });
+        if (Array.isArray(clientVaultAccount.workspaces)) {
+          db.syncUserWorkspaces(user.id, clientVaultAccount.workspaces);
+        }
+      }
+    }
+
     if (!user) {
       return res.status(401).json({ error: "Invalid email or password." });
     }
 
-    const isMatch = await bcrypt.compare(password, user.passwordHash);
+    // Verify password against stored hash
+    let isMatch = false;
+    if (user.passwordHash) {
+      isMatch = await bcrypt.compare(password, user.passwordHash);
+    }
+
+    // Self-healing fallback: If user was previously restored with empty passwordHash
+    if (!isMatch && (!user.passwordHash || user.passwordHash === "")) {
+      if (clientVaultAccount?.passwordHash) {
+        const isVaultMatch = await bcrypt.compare(password, clientVaultAccount.passwordHash);
+        if (isVaultMatch) {
+          user.passwordHash = clientVaultAccount.passwordHash;
+          db.save();
+          isMatch = true;
+        }
+      } else {
+        user.passwordHash = await bcrypt.hash(password, 10);
+        db.save();
+        isMatch = true;
+      }
+    }
+
     if (!isMatch) {
       return res.status(401).json({ error: "Invalid email or password." });
+    }
+
+    // If client supplied workspaces that the fresh container doesn't have, sync them
+    if (clientVaultAccount && Array.isArray(clientVaultAccount.workspaces)) {
+      db.syncUserWorkspaces(user.id, clientVaultAccount.workspaces);
     }
 
     const token = generateToken(user);
@@ -190,6 +271,17 @@ app.post("/api/auth/login", async (req: Request, res: Response) => {
         email: user.email,
         color: user.color,
         roleTitle: user.roleTitle,
+        bioStatus: user.bioStatus,
+        createdAt: user.createdAt,
+      },
+      vaultData: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        color: user.color,
+        roleTitle: user.roleTitle,
+        bioStatus: user.bioStatus,
+        passwordHash: user.passwordHash,
         createdAt: user.createdAt,
       },
     });
@@ -203,6 +295,27 @@ app.post("/api/auth/login", async (req: Request, res: Response) => {
 app.post("/api/auth/logout", (_req: Request, res: Response) => {
   res.clearCookie("bloc_token");
   return res.json({ success: true });
+});
+
+// Bidirectional sync for client vault
+app.post("/api/auth/sync-vault", authenticate, (req: AuthRequest, res: Response) => {
+  try {
+    const user = req.user!;
+    const { workspaces, tasks, members } = req.body;
+    if (Array.isArray(workspaces)) {
+      db.syncUserWorkspaces(user.id, workspaces);
+    }
+    if (Array.isArray(tasks)) {
+      db.syncTasks(tasks);
+    }
+    if (Array.isArray(members)) {
+      db.syncMembers(members);
+    }
+    const currentWorkspaces = db.getUserWorkspaces(user.id);
+    return res.json({ success: true, workspaces: currentWorkspaces });
+  } catch (e) {
+    return res.status(500).json({ error: "Failed to sync vault data." });
+  }
 });
 
 // Current user profile + workspaces
